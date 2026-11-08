@@ -1,0 +1,11 @@
+Supplementary character outlines and stroke order: 教育部《國字標準字體筆順學習網》
+https://stroke-order.learningweb.moe.edu.tw/
+Copyright 中華民國教育部. Individual pages display CC BY-NC-ND 3.0 Taiwan for animations: https://creativecommons.org/licenses/by-nc-nd/3.0/tw/
+Characters: 吔搧汙溼痠礪蓆虯襬鎚鏗鏘
+Converted only coordinates and data format: source 2048 x 2048 y-down; output x=x/2, y=900-y/2 for HanziWriter convention. Original outline coordinates, stroke order, and track sequences retained. Radical-stroke subsets visually reviewed against official page radical labels.
+The source 襬 page describes 21 strokes but its XML contains 20 Stroke elements; output preserves all 20 original XML strokes without alteration.
+
+
+2026-11-07: 2622 additional characters replaced with 教育部《國字標準字體筆順學習網》 data obtained via g0v/zh-stroke-data (https://github.com/g0v/zh-stroke-data, utf8 XML), same coordinate conversion, outlines/order/tracks unchanged; exact duplicate strokes in 10 g0v records removed. See scripts/content/MOE-STROKES-SOURCES.md.
+2026-11-07: 39 more characters taken directly from the embedded XML on stroke-order.learningweb.moe.edu.tw/dictView.jsp?ID=<codepoint> (乃侷勺咂咧墩崗徉徜捍据揄揶擤擷杆柢璞皙祛纍芡芯菇薦蝟踮蹟遛醅鉅隹饈饗鬟鮭鵰鷸鑑), same conversion.
+2026-11-07: 亻宀忄氵兹厷哏曬 assembled from strokes of MOE characters (你快江安雄滋咧很曝灑), outlines unchanged, horizontal translation only. See scripts/content/MOE-STROKES-SOURCES.md.
