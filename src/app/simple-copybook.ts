@@ -87,6 +87,8 @@ export function buildSimpleDocument({groups, preset, times, contentMode, cellSiz
     blankLast: preset === 'traceBlank' || preset === 'progressive',
     defaultMode: quiz ? 'blank' : defaultMode,
     paperSize: 'A4',
+    // 一欄放得下就接著放下一個語詞（中間空一格），短語詞或只寫一次時比較省紙
+    wordsPerColumn: 0, wordGap: 1,
     fieldValues,
     items,
   };

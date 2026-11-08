@@ -3,11 +3,12 @@
 import {bookPageSVG, svgPNG, downloadBlob} from './copybook-export';
 import {imagePDF} from './worksheet-pdf';
 
-export async function renderPageImages(plan, data, options, teaching) {
+export async function renderPageImages(plan, data, options, teaching, extra = []) {
   await document.fonts.ready;
   const images = [];
-  for (let page = 0; page < plan.pages.length; page++) {
-    const png = await svgPNG(bookPageSVG(plan, page, data, options, teaching), 1);
+  const svgs = [...plan.pages.map((_, page) => bookPageSVG(plan, page, data, options, teaching)), ...extra];
+  for (const svg of svgs) {
+    const png = await svgPNG(svg, 1);
     const url = URL.createObjectURL(new Blob([png], {type: 'image/png'}));
     try {
       const img = new Image();
@@ -15,21 +16,21 @@ export async function renderPageImages(plan, data, options, teaching) {
       const c = document.createElement('canvas');
       c.width = img.width; c.height = img.height;
       c.getContext('2d').drawImage(img, 0, 0);
-      const blob = await new Promise(resolve => c.toBlob(resolve, 'image/jpeg', .96));
+      const blob = await new Promise(resolve => c.toBlob(resolve, 'image/jpeg', .92));
       images.push({bytes: new Uint8Array(await blob.arrayBuffer()), width: c.width, height: c.height, blob});
     } finally { URL.revokeObjectURL(url); }
   }
   return images;
 }
 
-export async function downloadPDF(plan, data, options, teaching) {
-  const images = await renderPageImages(plan, data, options, teaching);
+export async function downloadPDF(plan, data, options, teaching, extra = []) {
+  const images = await renderPageImages(plan, data, options, teaching, extra);
   downloadBlob(imagePDF(images, plan.paper), (options.title || '生字學習單') + '.pdf');
 }
 
 // 用隱藏的 iframe 列印，不會被彈出視窗封鎖。
-export async function printPages(plan, data, options, teaching) {
-  const images = await renderPageImages(plan, data, options, teaching);
+export async function printPages(plan, data, options, teaching, extra = []) {
+  const images = await renderPageImages(plan, data, options, teaching, extra);
   const urls = images.map(im => URL.createObjectURL(im.blob));
   const {width, height} = plan.paper;
   const frame = document.createElement('iframe');
