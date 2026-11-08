@@ -1,0 +1,460 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "../../vendor/shadcn-tailwind-4.13.0.css";
+
+@font-face {
+  font-family: "MOE Standard Kai";
+  src: url("/fonts/moe-standard-kai-5.1.ttf") format("truetype");
+  font-display: swap;
+}
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility scrollbar-gutter-stable {
+  scrollbar-gutter: stable;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --primary: #171717;
+  --primary-foreground: #fafafa;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #171717;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --accent: #f5f5f5;
+  --accent-foreground: #171717;
+  --destructive: #e7000b;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #a1a1a1;
+  --chart-1: #f54900;
+  --chart-2: #009689;
+  --chart-3: #104e64;
+  --chart-4: #ffb900;
+  --chart-5: #fe9a00;
+  --radius: 0.625rem;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #171717;
+  --sidebar-primary: #171717;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #a1a1a1;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", "Heiti TC", Arial, sans-serif;
+  --font-kai: "MOE Standard Kai", "TW-Kai", "BiauKai", "DFKai-SB", "標楷體", "Kaiti TC", "STKaiti", "LXGW WenKai TC", "KaiTi", serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.force-light) {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --card: #171717;
+    --card-foreground: #ededed;
+    --popover: #171717;
+    --popover-foreground: #ededed;
+    --primary: #ededed;
+    --primary-foreground: #171717;
+    --secondary: #262626;
+    --secondary-foreground: #ededed;
+    --muted: #262626;
+    --muted-foreground: #a1a1a1;
+    --accent: #262626;
+    --accent-foreground: #ededed;
+    --destructive: #ff6467;
+    --border: #ffffff1a;
+    --input: #ffffff26;
+    --ring: #737373;
+    --chart-1: #8e51ff;
+    --chart-2: #00bc7d;
+    --chart-3: #fe9a00;
+    --chart-4: #ad46ff;
+    --chart-5: #ff2056;
+    --sidebar: #171717;
+    --sidebar-foreground: #ededed;
+    --sidebar-primary: #8e51ff;
+    --sidebar-primary-foreground: #ededed;
+    --sidebar-accent: #262626;
+    --sidebar-accent-foreground: #ededed;
+    --sidebar-border: #ffffff1a;
+    --sidebar-ring: #737373;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+}
+.writer-layer svg { width:100%;height:100%; }
+button { touch-action:manipulation; }
+@media(max-width:640px){.min-h-\[600px\]{min-height:auto} }
+
+/* Keep the worksheet controls and the live paper in the same working area. */
+.copybook-workspace { display:flex; flex-direction:column; height:calc(100dvh - 2rem); min-height:30rem; scroll-margin-top:1rem; }
+.copybook-workspace-toolbar { flex:none; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem; padding:.75rem 0; }
+.copybook-workspace-panels { display:grid; grid-template-columns:minmax(0,1fr); gap:1.25rem; flex:1; min-height:0; }
+.copybook-panel { display:flex; flex-direction:column; min-width:0; min-height:0; overflow:hidden; border:1px solid #d5dce5; border-radius:1rem; background:#fff; }
+.copybook-panel-heading { flex:none; padding:1rem; border-bottom:1px solid #d5dce5; }
+.copybook-panel-body { flex:1; min-height:0; overflow:auto; scrollbar-gutter:stable; }
+.copybook-cell-location { margin-top:.75rem; padding:.75rem; border:1px solid #bfdbfe; border-radius:.75rem; color:#1e3a8a; background:#eff6ff; }
+.copybook-preview-paper { box-sizing:border-box; min-height:20rem; padding:.75rem; }
+.copybook-preview-cell { position:relative; display:block; width:100%; padding:0; border:0; background:#fff; cursor:pointer; }
+.copybook-preview-cell:hover::after, .copybook-preview-cell.is-active::after, .copybook-preview-cell:focus-visible::after { content:''; position:absolute; inset:0; border:3px solid #1d4ed8; pointer-events:none; z-index:1; }
+.copybook-preview-cell:focus-visible { outline:3px solid #1d4ed8; outline-offset:2px; z-index:2; }
+@media (min-width:1024px) { .copybook-workspace-panels { grid-template-columns:minmax(0,1fr) minmax(0,1fr); } }
+@media (max-width:1023px) {
+ .copybook-workspace[data-mobile-view="editor"] .copybook-preview,
+ .copybook-workspace[data-mobile-view="preview"] .copybook-editor { display:none; }
+ .copybook-workspace-toolbar button { padding:.5rem .65rem; }
+ .copybook-workspace { min-height:44rem; }
+}
+/* 電腦與平板橫放：左側設定跟著整頁捲動（不再是小捲動框），右側預覽固定在畫面上隨時可看。 */
+@media (min-width:1024px) and (min-height:641px) {
+ .copybook-workspace { height:auto; min-height:0; }
+ .copybook-workspace-panels { align-items:start; }
+ .copybook-editor { overflow:visible; }
+ .copybook-editor .copybook-panel-body { flex:none; overflow:visible; }
+ .copybook-editor .copybook-panel-heading { position:sticky; top:var(--teacher-bar-h,0px); z-index:15; background:#fff; border-radius:1rem 1rem 0 0; }
+ .copybook-preview { position:sticky; top:calc(var(--teacher-bar-h,0px) + .75rem); height:calc(100dvh - 1.5rem - var(--teacher-bar-h,0px)); }
+ .copybook-editor { scroll-margin-top:calc(var(--teacher-bar-h,0px) + .5rem); }
+}
+@media (max-width:640px), (max-height:640px) {
+ .copybook-workspace { height:auto; min-height:0; }
+ .copybook-panel-body { flex:none; max-height:65dvh; min-height:14rem; }
+}
+
+/* 練習設定：內容跟著整頁捲動（不再關在小框框裡），分頁列固定在上方、儲存列固定在下方。 */
+.learning-settings-workspace { display:flex; flex-direction:column; overflow:visible !important; }
+.learning-settings-body { flex:none; }
+.learning-settings-workspace > :first-child { position:sticky; top:var(--teacher-bar-h,0px); z-index:20; border-radius:1rem 1rem 0 0; box-shadow:0 1px 0 #d5dce5; }
+.learning-settings-workspace > :last-child { position:sticky; bottom:0; z-index:20; border-radius:0 0 1rem 1rem; box-shadow:0 -4px 12px rgba(15,23,42,.08); }
+@media (max-width:640px) { .learning-settings-workspace > :first-child { position:static; } }
+
+/* Keep the batch editor's confirmation and save controls outside the scrolling list. */
+.bulk-custom-dialog { height:min(92dvh,56rem); max-height:calc(100dvh - 1rem); }
+.bulk-custom-body { scrollbar-gutter:stable; }
+.bulk-custom-body label { min-width:0; max-width:100%; }
+.bulk-custom-body select { max-width:100%; }
+.bulk-custom-body fieldset { min-inline-size:0; }
+/* Short or heavily zoomed viewports use one reachable scroll area for the whole dialog. */
+@media(max-height:540px) {
+ .bulk-custom-dialog { overflow-y:auto; overscroll-behavior:contain; }
+ .bulk-custom-body { flex:none; overflow:visible; }
+}
+.copybook-word-block { position:absolute; inset-inline:0; z-index:10; width:100%; padding:0; border:2px solid #60a5fa; border-radius:4px; background:transparent; touch-action:none; cursor:grab; }
+.copybook-word-block:hover,.copybook-word-block.is-picked,.copybook-word-block:focus-visible { border-color:#1d4ed8; background:rgb(59 130 246 / .08); outline:2px solid #1d4ed8; outline-offset:-2px; }
+.copybook-word-block:active { cursor:grabbing; }
+.copybook-drop { position:absolute; z-index:30; display:flex; align-items:center; justify-content:center; border:2px dashed #2563eb; border-radius:4px; color:#1e3a8a; background:rgb(239 246 255 / .94); font-size:14px; line-height:1.3; cursor:pointer; }
+.copybook-drop-before { left:0; width:100%; height:22px; transform:translateY(-50%); }
+.copybook-drop-before span { max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px; }
+.copybook-drop-tail { left:0; width:100%; min-height:28px; padding:2px; }
+.copybook-drop-new { right:-8px; top:0; width:16px; height:100%; z-index:40; background:rgb(219 234 254 / .7); }
+.copybook-drop-new span { writing-mode:vertical-rl; letter-spacing:2px; }
+.copybook-drop.is-over,.copybook-drop:focus-visible { background:#dbeafe; border:3px solid #1d4ed8; outline:2px solid #93c5fd; }
+.copybook-drop.is-invalid { color:#991b1b; border-color:#dc2626; background:#fee2e2; }
+.copybook-drop-last { position:relative; min-height:44px; padding:8px 16px; width:100%; }
+.copybook-arranging { padding-bottom:24px; }
+.copybook-drag-label { position:fixed; z-index:100; pointer-events:none; background:#1d4ed8; color:white; box-shadow:0 4px 12px #0003; border-radius:8px; padding:8px 12px; font-weight:700; }
+
+.copybook-word-tools{display:flex;align-items:stretch;min-width:0;border:1px solid #93c5fd;border-radius:6px;background:#eff6ff;overflow:hidden}
+.copybook-word-handle{display:flex;align-items:center;justify-content:center;gap:1px;flex:1;min-width:0;padding:4px 1px;color:#1e3a8a;font-weight:700;touch-action:none;cursor:grab}
+.copybook-word-handle span{overflow-wrap:anywhere}
+.copybook-word-handle svg{flex-shrink:0;width:10px}
+.copybook-word-handle.is-picked{background:#1d4ed8;color:white}
+.copybook-word-delete{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:28px;min-height:36px;border-left:1px solid #bfdbfe;background:white;color:#b91c1c}
+.copybook-word-delete:hover{background:#fee2e2}
+.copybook-word-delete:focus-visible,.copybook-word-handle:focus-visible{outline:2px solid #1d4ed8;outline-offset:-2px}
+.copybook-fill-space{position:absolute;inset-inline:3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:2px dashed #93c5fd;border-radius:6px;background:rgba(239,246,255,.9);color:#1e40af;font-size:14px;font-weight:700;line-height:1.3;padding:2px;min-height:28px}
+.copybook-fill-space:hover{background:#dbeafe;border-color:#2563eb}
+.copybook-fill-space:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
+@media print{.copybook-word-tools,.copybook-fill-space{display:none}}
+
+.student-roster-table th:nth-child(2),.student-roster-table td:nth-child(2){position:sticky;left:0;z-index:1;background:#fff;box-shadow:2px 0 3px #0001}
+.student-roster-table th:nth-child(2){background:#eff6ff;z-index:2}
+
+/* Keep the drawing surface and frequent controls together; small/zoomed views may still scroll. */
+.paint-workspace { display:grid; grid-template-columns:minmax(0,1fr); gap:.75rem; align-items:start; }
+.paint-controls { min-width:0; }
+.paint-palette { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:4px; }
+.paint-palette button { min-height:44px; min-width:0; }
+.paint-check-actions button { min-height:44px; }
+.parts-surface { display:block; width:100%; height:auto; }
+.paint-surface { max-width:440px; aspect-ratio:1; }
+.assembly-surface { max-width:520px; }
+.assembly-workspace { min-width:0; }
+.assembly-side-surface { max-width:800px; }
+.writing-surface,.assessment-surface { width:min(100%,420px); }
+.free-practice-writing .writing-surface { width:min(100%,clamp(220px,calc(100dvh - 23rem),380px)); }
+.free-practice-writing .writing-board { margin-top:.5rem; }
+@media (min-width:680px) and (max-height:900px) {
+ .free-practice-writing { padding:.5rem; }
+ .free-practice-writing .writing-board { margin-top:.25rem; }
+ .free-practice-writing .writing-board > * + * { margin-top:.25rem; }
+ .free-practice-writing .writing-surface { width:min(100%,clamp(190px,calc(100dvh - 25rem),360px)); }
+ .free-practice-writing .writing-board button { padding:.35rem .55rem; }
+ .free-practice-writing .writing-panel { gap:.3rem .65rem; }
+}
+.roster-batch-bar, .grading-toolbar { top:calc(var(--teacher-bar-h,0px) + .5rem) !important; }
+.practice-next-step { position:sticky; bottom:0; z-index:10; background:rgba(255,255,255,.97); padding:.35rem 0; }
+.practice-next-step:empty { display:none; }
+.student-workspace .practice-exercise > div > header button { min-height:44px; padding:.5rem .75rem; }
+.student-workspace .practice-exercise > div > header h2 { font-size:1.1rem; }
+.student-workspace .writing-board > [role="tablist"] button { min-height:44px; }
+.student-workspace .paint-surface { width:min(100%,clamp(240px,calc(100dvh - 27rem),440px)); }
+.student-workspace .writing-surface,.student-workspace .assessment-surface,.student-workspace .recall-surface { width:min(100%,clamp(260px,calc(100dvh - 21rem),440px)); margin-inline:auto; }
+.assessment-workspace { display:grid; gap:1rem; align-items:start; }
+.assessment-answer { width:100%; min-width:0; max-width:640px; margin-inline:auto; }
+@media(min-width:680px) {
+ .paint-workspace { grid-template-columns:minmax(0,1fr) minmax(240px,280px); gap:1rem; }
+ .paint-controls { grid-column:2; grid-row:1; }
+ .paint-surface { grid-column:1; grid-row:1; }
+ .paint-palette { grid-template-columns:repeat(4,minmax(44px,1fr)); gap:6px; }
+ .paint-palette button { min-height:46px; }
+ .student-workspace .paint-surface { width:min(100%,clamp(280px,calc(100dvh - 22rem),460px)); }
+ .writing-panel:not([hidden]) { display:grid; grid-template-columns:minmax(0,1fr) minmax(220px,270px); gap:.75rem 1rem; align-items:start; }
+ .writing-panel > * { margin-top:0; }
+ .writing-mode { grid-column:1/-1; }
+ .writing-surface { grid-column:1; grid-row:2/span 3; }
+ .writing-background-controls { grid-column:2; grid-row:2; }
+ .writing-actions { grid-column:2; grid-row:3; }
+ .writing-feedback { grid-column:2; grid-row:4; }
+ .assessment-workspace.has-hints { grid-template-columns:minmax(220px,280px) minmax(0,1fr); }
+ .assessment-hints { position:sticky; top:.5rem; }
+}
+@media(max-width:679px) {
+ .paint-palette { grid-template-columns:repeat(4,minmax(44px,1fr)); }
+ .paint-controls { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:.5rem; }
+ .paint-controls > * { margin-top:0; }
+ .paint-controls > :first-child,.paint-controls .paint-feedback { grid-column:1/-1; }
+ .paint-palette { grid-column:1; grid-row:2/span 2; }
+ .paint-controls > label { grid-column:2; font-size:.875rem; padding:.35rem; gap:.35rem; }
+ .paint-check-actions { grid-column:2; flex-wrap:wrap; gap:4px; }
+ .paint-check-actions button { padding:.35rem .5rem; }
+ .paint-check-actions button:first-child { flex-basis:100%; }
+ .paint-controls .paint-feedback { padding:.35rem; }
+ .student-workspace .practice-word { font-size:2rem; }
+ .student-workspace .writing-board > [role="tablist"] { gap:4px; }
+ .student-workspace .writing-board > [role="tablist"] button { flex:1; padding:.4rem; font-size:.875rem; }
+ .student-workspace .writing-board > [role="tablist"] svg { display:none; }
+}
+@media(max-width:360px) {
+ .paint-controls { grid-template-columns:1fr; }
+ .paint-palette { grid-column:1; grid-row:auto; grid-template-columns:repeat(4,minmax(44px,1fr)); }
+ .paint-controls > label,.paint-check-actions { grid-column:1; }
+ .paint-check-actions button:first-child { flex-basis:auto; }
+}
+@media(min-width:361px) and (max-width:500px) { .paint-palette { grid-template-columns:repeat(2,minmax(44px,1fr)); } }
+
+/* ===== 介面優化：全站視覺規則 ===== */
+/* Tailwind v4 的 border 預設為文字色，導致全站黑框；改成柔和灰色，指定顏色的框線不受影響。 */
+@layer base {
+  *, ::before, ::after { border-color: #cbd5e1; }
+  summary { padding-block: .4rem; }
+}
+/* 楷書：示範字、目標字與生字按鈕 */
+.hanzi-kai, .hanzi-kai-buttons button { font-family: var(--font-kai); }
+
+/* 按鈕三級：主要（實心）、次要（白底，原本樣式）、安靜（無框） */
+button, a { -webkit-tap-highlight-color: transparent; }
+button:not(:disabled), [role="tab"]:not(:disabled) { cursor: pointer; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+.btn-primary { background: #1d4ed8 !important; border-color: #1d4ed8 !important; color: #fff !important; box-shadow: 0 2px 0 #1e3a8a; }
+.btn-primary:hover:not(:disabled) { background: #1e40af !important; }
+.btn-primary:disabled, .btn-go:disabled { background: #e2e8f0 !important; border-color: #cbd5e1 !important; color: #334155 !important; box-shadow: none; opacity: 1; }
+.btn-go { background: #c2410c !important; border-color: #c2410c !important; color: #fff !important; box-shadow: 0 3px 0 #7c2d12; }
+.btn-go:hover:not(:disabled) { background: #9a3412 !important; }
+.btn-quiet { border-color: transparent !important; background: transparent !important; box-shadow: none !important; }
+.btn-quiet:hover:not(:disabled) { background: #eff6ff !important; }
+[aria-pressed="true"], [aria-current="page"], [role="tab"][aria-selected="true"] { box-shadow: inset 0 -3px 0 currentColor; }
+
+/* 卡片與摺疊區：外框柔和 */
+details > summary { cursor: pointer; }
+details[open] > summary { margin-bottom: .25rem; }
+
+/* ===== 學生端 ===== */
+.student-workspace, .practice-page { font-size: 1.0625rem; }
+.practice-page .text-sm { font-size: .95rem; }
+.student-progress { height: .75rem; border-radius: 999px; background: #fde7d3; overflow: hidden; }
+.student-progress > span { display: block; height: 100%; background: #ea580c; border-radius: 999px; transition: width .3s; }
+.lesson-card-progress { height: .5rem; border-radius: 999px; background: #fed7aa; overflow: hidden; }
+.lesson-card-progress > span { display: block; height: 100%; background: #16a34a; }
+.step-lock-hint { display: block; font-size: .8rem; font-weight: 600; color: #64748b; }
+/* 底部固定按鈕列不可遮住內容 */
+.practice-exercise { padding-bottom: 5.5rem !important; }
+.practice-next-step { position: sticky; bottom: 0; margin-inline: -.25rem; padding: .5rem .25rem; background: rgba(255,255,255,.96); box-shadow: 0 -6px 12px -8px rgb(15 23 42 / .25); }
+@media (min-width:680px) {
+  .student-workspace .writing-surface,.student-workspace .assessment-surface,.student-workspace .recall-surface { width:min(100%,clamp(260px,calc(100dvh - 22rem),460px)); }
+  .student-workspace .paint-surface { width:min(100%,clamp(260px,calc(100dvh - 22rem),460px)); }
+}
+
+/* ===== 老師後台：側欄版面 ===== */
+.teacher-shell { display: grid; grid-template-columns: minmax(0,1fr); gap: 1.25rem; align-items: start; }
+.teacher-sidebar { display: flex; flex-direction: column; gap: .75rem; }
+.teacher-sidebar .nav-item { display: flex; width: 100%; align-items: center; gap: .6rem; border-radius: .75rem; padding: .7rem .85rem; font-weight: 700; color: #1e293b; text-align: left; border: 2px solid transparent; background: transparent; }
+.teacher-sidebar .nav-item:hover { background: #eff6ff; }
+.teacher-sidebar .nav-item[aria-current="page"] { background: #1d4ed8; color: #fff; box-shadow: none; }
+.teacher-sidebar .nav-group-label { padding: .25rem .85rem; font-size: .8rem; font-weight: 700; color: #64748b; letter-spacing: .05em; }
+@media (max-width:1199px) {
+  .teacher-sidebar { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: .5rem; }
+  .teacher-sidebar > :first-child { grid-column: 1/-1; }
+  .teacher-sidebar > :first-child > p:first-child { display: none; }
+  .teacher-sidebar nav { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .teacher-sidebar .nav-group-label { display: none; }
+  .teacher-sidebar .nav-item { width: auto; white-space: nowrap; border-color: #cbd5e1; background: #fff; padding: .45rem .75rem; gap: .4rem; font-size: .95rem; }
+  .teacher-sidebar > details, .teacher-sidebar > [aria-label="班級資料更新"] { padding: .5rem .75rem; }
+  /* 平板與手機：工具列固定在畫面頂端，捲動時也能直接切換工具（單排，可左右滑動）。 */
+  .teacher-sidebar { display: contents; }
+  .teacher-sidebar > :first-child { position: sticky; top: 0; z-index: 40; padding: .4rem .5rem; box-shadow: 0 2px 10px rgba(15,23,42,.10); }
+  .teacher-sidebar nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+  .teacher-sidebar .nav-item { flex: none; }
+  #current-teacher-tool { scroll-margin-top: 5rem; }
+}
+@media (min-width:1200px) {
+  .teacher-shell { grid-template-columns: 14.5rem minmax(0,1fr); }
+  .teacher-sidebar { position: sticky; top: 1rem; max-height: calc(100dvh - 2rem); overflow-y: auto; }
+}
+
+/* ===== 學生端：注音、點按區域與田字格位置 ===== */
+/* 語詞旁的注音放大，國小學生在平板上也看得清楚。 */
+.practice-word .text-\[\.6em\] { font-size: max(.8em, 15px); }
+/* 可點的摺疊標題至少 44px 高，手指好按。 */
+.student-workspace details > summary { min-height: 44px; padding-block: .55rem; }
+/* 捲動到田字格時，保留底部按鈕列的空間。 */
+.student-workspace .paint-surface, .student-workspace .assembly-surface, .student-workspace .writing-surface, .student-workspace .recall-surface { scroll-margin-bottom: 6rem; scroll-margin-top: .5rem; }
+
+/* ===== 學生端：田字格大小（小／中／大） ===== */
+.board-size-toggle { display:inline-flex; align-items:center; gap:2px; border:2px solid #cbd5e1; border-radius:.75rem; padding:2px; background:#fff; }
+.board-size-toggle > span { padding:0 .4rem; font-weight:700; font-size:.95rem; color:#475569; }
+.board-size-toggle > button { min-width:42px; min-height:40px; border-radius:.6rem; font-weight:700; color:#1e293b; }
+.board-size-toggle > button[aria-pressed="true"] { background:#1d4ed8; color:#fff; }
+.student-workspace[data-board-size="s"] :is(.paint-surface,.writing-surface,.recall-surface,.assessment-surface) { width:min(100%,360px,calc(var(--board-fit,440px) * .8)); }
+.student-workspace[data-board-size="m"] :is(.paint-surface,.writing-surface,.recall-surface,.assessment-surface) { width:min(100%,var(--board-fit,440px)); max-width:760px; }
+.student-workspace[data-board-size="l"] :is(.paint-surface,.writing-surface,.recall-surface,.assessment-surface) { width:min(100%,max(var(--board-fit,440px) + 120px,600px),calc(100dvh - 5rem)); max-width:900px; }
+@media (min-width:680px) {
+ body:has(.free-practice-writing) main { padding-block:.5rem; }
+ body:has(.free-practice-writing) footer { padding-block:.15rem; font-size:.8rem; }
+ body:has(.free-practice-writing) header:has(h1) { padding-block:.35rem; }
+ body:has(.free-practice-writing) header:has(h1) button { min-height:40px; padding:.35rem .7rem; }
+ .free-practice-writing { padding:.5rem .75rem; }
+ .free-practice-writing > * + * { margin-top:.35rem; }
+ .free-writing-header button, .free-writing-navigation button, .free-writing-prompt button { min-height:44px; padding:.35rem .7rem; }
+ .free-writing-header p { margin-top:0; }
+ .free-writing-navigation { gap:.45rem; }
+ .free-writing-info { display:flex; align-items:center; justify-content:center; gap:.65rem; flex-wrap:wrap; }
+ .free-writing-navigation { flex-shrink:0; }
+ .free-writing-prompt { min-width:0; }
+ .free-writing-prompt { display:flex; align-items:center; justify-content:center; gap:.75rem; }
+ .free-writing-prompt .practice-word { padding:.35rem .75rem; font-size:1rem; text-align:left; }
+ .free-writing-prompt [role="group"] { gap:.4rem; }
+ .free-practice-writing .writing-board { margin-top:.3rem; }
+ .free-practice-writing .writing-board > * + * { margin-top:.3rem; }
+ .free-practice-writing .writing-panel { gap:.35rem .75rem; }
+ .free-practice-writing[data-board-size] :is(.writing-surface,.paint-surface) { width:min(100%,var(--free-board-size)); max-width:none; }
+ .free-practice-writing[data-board-size] .assembly-surface:not(.assembly-side-surface) { width:min(100%,calc(var(--free-board-size) * 520 / 760)); max-width:none; }
+ .free-practice-writing[data-board-size] .assembly-side-surface { width:min(100%,calc(var(--free-board-size) * 800 / 520)); max-width:none; }
+ .free-practice-writing[data-board-size="s"] { --free-board-size:calc(var(--free-board-fit, 400px) * .8); }
+ .free-practice-writing[data-board-size="m"] { --free-board-size:calc(var(--free-board-fit, 400px) * .98); }
+ .free-practice-writing[data-board-size="l"] { --free-board-size:calc(var(--free-board-fit,400px) * 1.16); }
+}
+
+/* 直式平板與手機：田字格放在最上面、用滿寬度；顏色排成一列放在格子上方，其他按鈕移到格子下方。 */
+@media (max-width:679px), (min-width:680px) and (max-width:1100px) and (orientation:portrait) {
+ .student-workspace .paint-workspace { display:flex; flex-direction:column; align-items:stretch; gap:.6rem; }
+ .student-workspace .paint-controls { display:contents; }
+ .student-workspace .paint-controls > * { order:3; margin-top:0 !important; }
+ .student-workspace .paint-controls > p:not(.paint-feedback) { order:0; }
+ .student-workspace .paint-controls > .paint-palette { order:1; grid-template-columns:repeat(8,minmax(0,1fr)); gap:4px; }
+ .student-workspace .paint-workspace > .paint-surface { order:2; grid-column:auto; grid-row:auto; }
+ .student-workspace .paint-palette button { min-height:42px; }
+ .student-workspace .writing-panel:not([hidden]) { display:flex; flex-direction:column; gap:.6rem; }
+ .student-workspace .writing-panel > .writing-surface { order:-1; }
+}
+@media (max-width:679px) {
+ .student-workspace [role="tablist"][aria-label="依序完成學習步驟"] { flex-wrap:nowrap; width:100%; gap:.3rem; }
+ .student-workspace [role="tablist"][aria-label="依序完成學習步驟"] > button { flex:1 1 0; min-width:0; padding:.35rem .25rem; font-size:.95rem; }
+ .student-workspace .practice-word button { padding:.4rem .7rem; }
+}
+/* 組部件：依待組區位置的長寬比例，讓整張圖也跟著小／中／大縮放（--board-fit 是可用高度）。 */
+.student-workspace[data-board-size="s"] .assembly-side-surface { width:min(100%,554px); max-width:none; }
+.student-workspace[data-board-size="s"] .assembly-surface:not(.assembly-side-surface) { width:min(100%,246px); }
+.student-workspace[data-board-size="m"] .assembly-side-surface { width:min(100%,calc(var(--board-fit,440px) * 800 / 520)); max-width:none; }
+.student-workspace[data-board-size="m"] .assembly-surface:not(.assembly-side-surface) { width:min(100%,calc(var(--board-fit,440px) * 520 / 760)); max-width:none; }
+.student-workspace[data-board-size="l"] .assembly-side-surface { width:min(100%,calc((var(--board-fit,440px) + 120px) * 800 / 520)); max-width:none; }
+.student-workspace[data-board-size="l"] .assembly-surface:not(.assembly-side-surface) { width:min(100%,calc((var(--board-fit,440px) + 120px) * 520 / 760)); max-width:none; }
+/* 班級版依可用空間維持三種可辨認的大小。 */
+.practice-page:has(.practice-exercise)[data-board-size="s"] { --class-board-size:calc(var(--board-fit,440px) * .8); }
+.practice-page:has(.practice-exercise)[data-board-size="m"] { --class-board-size:calc(var(--board-fit,440px) * .98); }
+.practice-page:has(.practice-exercise)[data-board-size="l"] { --class-board-size:calc(var(--board-fit,440px) * 1.16); }
+.practice-page:has(.practice-exercise)[data-board-size] :is(.paint-surface,.writing-surface,.recall-surface) { width:min(100%,var(--class-board-size)); max-width:none; }
+.practice-page:has(.practice-exercise)[data-board-size] .assembly-surface:not(.assembly-side-surface) { width:min(100%,calc(var(--class-board-size) * 520 / 760)); max-width:none; }
+.practice-page:has(.practice-exercise)[data-board-size] .assembly-side-surface { width:min(100%,calc(var(--class-board-size) * 800 / 520)); max-width:none; }
+@media (min-width:680px) {
+ body:has(.practice-page .practice-exercise) header:has(h1) { padding-block:.35rem; }
+ .practice-page .practice-exercise > div > header { gap:.4rem; }
+ .practice-page .practice-exercise > div > header button { min-height:44px; padding:.35rem .65rem; }
+}
+/* 測驗：畫筆、橡皮擦等工具放在格子上方，不會被底部按鈕列擋住；作答區可隨格子變寬。 */
+.student-workspace .assessment-answer { display:flex; flex-direction:column; gap:.75rem; max-width:none; }
+.student-workspace .assessment-answer > * { margin-top:0 !important; }
+.student-workspace .assessment-answer > .assessment-tools { order:-1; }
+
+/* 鍵盤操作時清楚顯示焦點 */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }

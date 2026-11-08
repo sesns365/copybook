@@ -1,0 +1,21 @@
+"use client";
+import React,{useEffect,useState} from 'react';
+import {copybookLocalScope,normalisePromptRules,readCopybookTemplates,writeCopybookTemplate} from './copybook-local';
+import TemplateFileTransfer from './TemplateFileTransfer';
+const names:Record<string,string>={blank:'空白書寫',trace:'整字描紅',gray:'整字描灰',parts:'部分部件提示',model:'完整黑字'},styles:Record<string,string>={black:'黑字',gray:'描灰',red:'描紅',blank:'留白'};
+const button='border-2 rounded-xl px-3 py-2 bg-white font-bold disabled:opacity-40',input='border-2 rounded-lg p-2 max-w-full';
+export default function CopybookPromptTemplates({classroomId,userId,rules,onRulesChange,disabled}:{classroomId?:any;userId?:any;rules:any;onRulesChange:(value:any)=>void;disabled:boolean}){
+ const scope=copybookLocalScope(classroomId,userId),[templates,setTemplates]=useState<any[]>([]),[name,setName]=useState(''),[selected,setSelected]=useState(''),[message,setMessage]=useState('');
+ const refresh=()=>{if(!scope)return;try{setTemplates(readCopybookTemplates(window.localStorage,scope))}catch{setMessage('此瀏覽器無法讀取提示範本，仍可直接設定並套用提示。')}};
+ useEffect(()=>{refresh();const changed=(event:StorageEvent)=>{if(event.key?.startsWith(scope+'template:'))refresh()};window.addEventListener('storage',changed);return()=>window.removeEventListener('storage',changed)},[scope]);
+ const chosen=templates.find(item=>item.id===selected),pending=normalisePromptRules(rules);
+ const save=()=>{if(disabled||!scope)return;try{if(readCopybookTemplates(window.localStorage,scope).length>=40)throw Error('此類範本最多 40 個，請先刪除不需要的範本。');const item={id:crypto.randomUUID(),name,rules:pending,updatedAt:Date.now()};writeCopybookTemplate(window.localStorage,scope,item);refresh();setSelected(item.id);setName('');setMessage('已保存提示順序範本，只保留在此瀏覽器。')}catch(error:any){setMessage(error?.message||'無法保存範本，請確認瀏覽器儲存空間。')}};
+ const remove=()=>{if(!chosen||disabled||!window.confirm(`刪除提示範本「${chosen.name}」嗎？目前待套用設定會保留。`))return;try{window.localStorage.removeItem(scope+'template:'+chosen.id);setSelected('');refresh();setMessage('已刪除提示範本。')}catch{setMessage('無法刪除範本，請稍後重試。')}};
+ if(!scope)return null;
+ return <details className="rounded-xl border bg-slate-50 p-3 space-y-3"><summary className="cursor-pointer font-bold">常用提示順序範本（此瀏覽器）</summary><p className="text-sm text-slate-600">可把上方或下方選好的「待套用」提示命名保存。範本只保存各次提示順序；語詞、注音、練習次數與排版維持目前設定。</p>
+  <fieldset disabled={disabled} className="space-y-3"><div className="flex flex-wrap gap-2 items-end"><label>範本名稱<input className={'block '+input} aria-label="提示順序範本名稱" maxLength={40} value={name} onChange={event=>setName(event.target.value)} placeholder="例如：描紅→描灰→留白"/></label><button type="button" className={button} disabled={!name.trim()||!Object.keys(pending).length} onClick={save}>儲存待套用提示為範本</button></div>
+  <div className="flex flex-wrap gap-2 items-end"><label>已存範本<select className={'block '+input} aria-label="已存提示順序範本" value={selected} onChange={event=>{setSelected(event.target.value);setMessage('')}}><option value="">選取範本並預覽</option>{templates.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button type="button" className={button+' text-red-800'} disabled={!chosen} onClick={remove}>刪除範本</button></div>
+  {chosen&&<div className="rounded-lg border bg-white p-3 space-y-2"><p className="font-bold">範本預覽：{chosen.name}</p><ul className="list-disc pl-5">{Object.entries(chosen.rules).map(([repeat,rule]:any)=><li key={repeat}>第 {Number(repeat)+1} 次：{names[rule.mode]}{rule.mode==='parts'?`（部件 1 ${styles[rule.firstStyle]}；其餘部件${styles[rule.otherStyle]}）`:''}</li>)}</ul><p className="text-sm">載入會取代目前待套用選項，仍須按「套用到全部語詞」才會變更學習單。練習次數不足的語詞會略過多出的次數。</p><button type="button" className={button+' border-blue-700 text-blue-900'} onClick={()=>{onRulesChange(normalisePromptRules(chosen.rules));setMessage('範本已載入待套用選項，請檢查後按「套用到全部語詞」。')}}>載入範本至待套用選項</button></div>}
+  </fieldset><TemplateFileTransfer kind="copybookPrompt" destination={scope} records={templates} disabled={disabled} onImported={refresh} renderPreview={record=><ul className="list-disc pl-5">{Object.entries(record.rules||{}).map(([repeat,rule]:any)=><li key={repeat}>第 {Number(repeat)+1} 次：{names[rule.mode]}{rule.mode==='parts'?`（部件 1 ${styles[rule.firstStyle]}；其餘部件${styles[rule.otherStyle]}）`:''}</li>)}</ul>}/>{message&&<p role="status" className="text-sm text-blue-900">{message}</p>}
+ </details>;
+}
