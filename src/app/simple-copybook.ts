@@ -142,9 +142,15 @@ export function normalizeZhuyin(text, length) {
 }
 export const missingZhuyin = pinyin => String(pinyin).split(/\s+/).some(s => s === NO_ZHUYIN || !s);
 
-// 每個字各一筆（同課本資料的做法），合併後整個語詞每個字都是生字。
+// 自訂語詞可指定哪些字是生字（預設全部）；非生字每次都印黑字。
+export function customTargets(c) {
+  const all = [...c.word].map((_, i) => i);
+  const t = Array.isArray(c.targets) ? [...new Set(c.targets)].filter(i => Number.isInteger(i) && i >= 0 && i < c.word.length).sort((a, b) => a - b) : [];
+  return t.length ? t : all;
+}
+// 每個生字各一筆（同課本資料的做法），合併後同一語詞的生字一起練習。
 export function customEntries(custom) {
-  return custom.flatMap(c => [...c.word].map((_, i) => ({
+  return custom.flatMap(c => customTargets(c).map(i => ({
     id: `${c.id}:${i}`, lesson: CUSTOM_LESSON_ID, bookId: CUSTOM_BOOK_ID, word: c.word,
     pinyin: c.pinyin, targetIdx: i, character: c.word[i], source: 'simple-custom',
   })));

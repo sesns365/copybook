@@ -70,7 +70,6 @@ function App() {
           <a className="underline" href={base + 'licenses/moe-standard-kai.txt'}>教育部標準楷書</a>、
           <a className="underline" href={base + 'licenses/moe-supplement-attribution.txt'}>教育部補充資料</a>。
           </>}
-          由特工365製作。
         </footer>
       </div>
     </CurriculumTitleProvider>

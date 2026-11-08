@@ -8,7 +8,7 @@ import {DEFAULT_BOOK, BOOKS, PUBLISHERS, GRADE_NAMES, getBook as baseGetBook} fr
 import {loadStrokeData, MISSING_STROKES} from './stroke-data';
 import {bookColumns, orderedBookEntries, bookPageSVG, bookDOCX, downloadBlob} from './copybook-export';
 import {automaticCopybookTitle} from './copybook-title';
-import {SIMPLE_PRESETS, MODE_LABEL, presetSequence, groupWords, buildSimpleDocument, buildZhuyinIndex, guessZhuyin, parseCustomWords, validCustomWord, normalizeZhuyin, missingZhuyin, polyphones, customEntries, customLessonSnapshot, customBookSnapshot, CUSTOM_LESSON_ID, encodeShare, decodeShare} from './simple-copybook';
+import {SIMPLE_PRESETS, MODE_LABEL, presetSequence, groupWords, buildSimpleDocument, buildZhuyinIndex, guessZhuyin, parseCustomWords, validCustomWord, normalizeZhuyin, missingZhuyin, polyphones, customEntries, customTargets, customLessonSnapshot, customBookSnapshot, CUSTOM_LESSON_ID, encodeShare, decodeShare} from './simple-copybook';
 import {downloadPDF, printPages} from './copybook-output';
 import {strokeOrderLayout, strokeOrderPageSVG} from './stroke-order-pages';
 
@@ -21,7 +21,7 @@ const readShared = () => {
   if (!m) return null;
   const s = decodeShare(m[1]);
   try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch {}
-  return s && s.v === 1 ? {lesson: s.l, picked: s.p, custom: s.c, preset: s.s, times: s.t, contentMode: s.m, cellSize: s.z, showZhuyin: s.y, customTitle: s.h, shared: true} : null;
+  return s && s.v === 1 ? {lesson: s.l, picked: s.p, custom: s.c, preset: s.s, times: s.t, diffOn: s.d, presetB: s.sb, timesB: s.tb, contentMode: s.m, cellSize: s.z, showZhuyin: s.y, customTitle: s.h, shared: true} : null;
 };
 const GUIDE = 'copybook-tool:guide-closed';
 
@@ -82,6 +82,10 @@ export default function SimpleCopybook({onAdvanced}) {
   const [cellSize, setCellSize] = useState([20, 25, 30].includes(saved.cellSize) ? saved.cellSize : 20);
   const [showZhuyin, setShowZhuyin] = useState(saved.showZhuyin !== false);
   const [strokeAppendix, setStrokeAppendix] = useState(saved.strokeAppendix === true);
+  // 差異化：同一份語詞再印一種練習方式（B 版）
+  const [diffOn, setDiffOn] = useState(saved.diffOn === true);
+  const [presetB, setPresetB] = useState(SIMPLE_PRESETS.some(p => p.id === saved.presetB) ? saved.presetB : 'trace');
+  const [timesB, setTimesB] = useState(Number.isInteger(saved.timesB) ? saved.timesB : 3);
   const [customTitle, setCustomTitle] = useState(typeof saved.customTitle === 'string' ? saved.customTitle : '');
   const [page, setPage] = useState(0);
   const [zoom, setZoom] = useState(saved.zoom === 'page' ? 'page' : 'width');
@@ -92,7 +96,7 @@ export default function SimpleCopybook({onAdvanced}) {
   const [message, setMessage] = useState('');
   const [customMsg, setCustomMsg] = useState('');
 
-  useEffect(() => { try { window.localStorage.setItem(STORE, JSON.stringify({lesson, picked, custom, preset, times, contentMode, cellSize, showZhuyin, customTitle, zoom, strokeAppendix})); } catch {} }, [lesson, picked, custom, preset, times, contentMode, cellSize, showZhuyin, customTitle, zoom, strokeAppendix]);
+  useEffect(() => { try { window.localStorage.setItem(STORE, JSON.stringify({lesson, picked, custom, preset, times, contentMode, cellSize, showZhuyin, customTitle, zoom, strokeAppendix, diffOn, presetB, timesB})); } catch {} }, [lesson, picked, custom, preset, times, contentMode, cellSize, showZhuyin, customTitle, zoom, strokeAppendix, diffOn, presetB, timesB]);
 
   const addCustom = () => {
     const words = parseCustomWords(customText), ok = words.filter(validCustomWord), bad = words.filter(w => !validCustomWord(w));
@@ -103,11 +107,16 @@ export default function SimpleCopybook({onAdvanced}) {
     setCustomText(bad.join(' '));
     setCustomMsg(bad.length ? `「${bad.join('、')}」不是 1 到 8 個國字的語詞，沒有加入，請修改後再按一次。` : rows.length ? `已加入 ${rows.length} 個語詞，請到第 2 步檢查注音。` : '這些語詞已經在清單裡了。');
   };
+  const toggleTarget = (id, i) => setCustom(v => v.map(c => {
+    if (c.id !== id) return c;
+    const t = customTargets(c), next = t.includes(i) ? t.filter(x => x !== i) : [...t, i].sort((a, b) => a - b);
+    return next.length ? {...c, targets: next} : c;
+  }));
   const updateCustomZhuyin = (id, text) => setCustom(v => v.map(c => c.id === id ? {...c, pinyin: text} : c));
   const fixCustomZhuyin = id => setCustom(v => v.map(c => c.id === id ? {...c, pinyin: normalizeZhuyin(c.pinyin, c.word.length)} : c));
   const removeCustom = id => { setCustom(v => v.filter(c => c.id !== id)); setPicked(v => v.filter(x => !x.startsWith(id + ':'))); };
   const copyShare = async () => {
-    const code = encodeShare({v: 1, l: lesson, p: picked.filter(id => !id.startsWith('custom:') || custom.some(c => id.startsWith(c.id + ':'))), c: custom, s: preset, t: times, m: contentMode, z: cellSize, y: showZhuyin, h: customTitle});
+    const code = encodeShare({v: 1, l: lesson, p: picked.filter(id => !id.startsWith('custom:') || custom.some(c => id.startsWith(c.id + ':'))), c: custom, s: preset, t: times, d: diffOn, sb: presetB, tb: timesB, m: contentMode, z: cellSize, y: showZhuyin, h: customTitle});
     const url = window.location.href.split('#')[0] + '#ws=' + code;
     try { await navigator.clipboard.writeText(url); setMessage('已複製分享連結，貼給同事或家長，打開就是同一份學習單。'); }
     catch { window.prompt('請複製這個連結：', url); }
@@ -161,24 +170,37 @@ export default function SimpleCopybook({onAdvanced}) {
   const targetChars = useMemo(() => [...new Set(groups.flatMap(g => g.targets.map(i => g.word[i])))], [groups]);
   const strokeLayout = useMemo(() => strokeAppendix ? strokeOrderLayout(targetChars, data) : {pages: [], perLine: 0}, [strokeAppendix, targetChars, data]);
   const noStrokeChars = strokeAppendix ? targetChars.filter(c => data[c] === null) : [];
-  const bookPages = plan.pages.length, strokePages = strokeLayout.pages.length;
+  const presetInfoB = SIMPLE_PRESETS.find(p => p.id === presetB), shownTimesB = Math.max(presetInfoB.min, timesB);
+  const missingPartsB = useMemo(() => new Set(presetB === 'parts' ? [...needed].filter(c => data[c] === null) : []), [presetB, needed, data]);
+  const docB = useMemo(() => diffOn ? buildSimpleDocument({groups, preset: presetB, times: shownTimesB, contentMode, cellSize, showZhuyin, title, titleCustom: !!customTitle.trim(), missingParts: missingPartsB, fieldValues: {班級: studentClass.trim(), 姓名: studentName.trim()}}) : null, [diffOn, groups, presetB, shownTimesB, contentMode, cellSize, showZhuyin, title, customTitle, missingPartsB, studentClass, studentName]);
+  const planB = useMemo(() => docB ? bookColumns(entries, docB.options) : null, [docB, entries]);
+  const bookPagesA = plan.pages.length, bookPagesB = planB ? planB.pages.length : 0;
+  const bookPages = bookPagesA + bookPagesB, strokePages = strokeLayout.pages.length;
   const pages = bookPages + strokePages;
+  // 頁尾小字標示 A／B，只有老師會注意到，不影響學生
+  const markVersion = (svg, v) => diffOn ? svg.replace(/(第 \d+／\d+ 頁)<\/text>/, `$1　${v}</text>`) : svg;
+  const rawPageSVG = i => i < bookPagesA ? markVersion(bookPageSVG(plan, i, data, doc.options), 'A')
+    : i < bookPages ? markVersion(bookPageSVG(planB, i - bookPagesA, data, docB.options), 'B')
+    : strokeOrderPageSVG(strokeLayout, i - bookPages, data, (title.replace(/\s*生字學習單$/, '') + ' 筆順練習').trim());
+  const allSVGs = () => Array.from({length: pages}, (_, i) => rawPageSVG(i));
+  const pageLabel = i => !diffOn ? '' : i < bookPagesA ? 'A 版・' : i < bookPages ? 'B 版・' : '筆順附頁・';
   const shown = Math.min(page, Math.max(0, pages - 1));
   useEffect(() => { if (page > pages - 1) setPage(Math.max(0, pages - 1)); }, [pages]);
   const strokeSVGs = () => strokeLayout.pages.map((_, i) => strokeOrderPageSVG(strokeLayout, i, data, (title.replace(/\s*生字學習單$/, '') + ' 筆順練習').trim()));
   const firstDoc = React.useRef(true);
-  useEffect(() => { if (firstDoc.current) { firstDoc.current = false; return; } if (!busy) { setMessage(''); setShareNote(''); } }, [doc, strokeAppendix]);
-  const ready = !!entries.length && !loading && !failedChars.length && !plan.tooLong.length;
-  const pageSVG = useMemo(() => entries.length ? (shown >= bookPages ? strokeOrderPageSVG(strokeLayout, shown - bookPages, data, (title.replace(/\s*生字學習單$/, '') + ' 筆順練習').trim()) : bookPageSVG(plan, shown, data, doc.options)).replace(/width="[\d.]+" height="[\d.]+"/, 'style="width:100%;height:auto;display:block"') : '', [plan, shown, data, doc.options, entries.length, strokeLayout, bookPages, title]);
+  useEffect(() => { if (firstDoc.current) { firstDoc.current = false; return; } if (!busy) { setMessage(''); setShareNote(''); } }, [doc, docB, strokeAppendix]);
+  const ready = !!entries.length && !loading && !failedChars.length && !plan.tooLong.length && !(planB?.tooLong.length);
+  const pageSVG = useMemo(() => entries.length ? rawPageSVG(shown).replace(/width="[\d.]+" height="[\d.]+"/, 'style="width:100%;height:auto;display:block"') : '', [plan, planB, shown, data, doc.options, docB, entries.length, strokeLayout, bookPages, title, diffOn]);
 
   const run = async (label, fn, done) => {
     if (busy || !ready) return;
     setBusy(label); setMessage(label + '，請稍候…');
     try { await fn(); setMessage(done); } catch (e) { setMessage('製作失敗：' + (e?.message || '請再試一次')); } finally { setBusy(''); }
   };
-  const doPDF = () => run('正在製作 PDF', () => downloadPDF(plan, data, doc.options, undefined, strokeSVGs()), `已下載「${title}.pdf」，通常會在電腦的「下載」資料夾。`);
-  const doPrint = () => run('正在準備列印', () => printPages(plan, data, doc.options, undefined, strokeSVGs()), '已開啟列印視窗。若印出來太小，請在列印設定選「實際大小」或「100%」。');
-  const doWord = () => run('正在製作 Word', async () => downloadBlob(await bookDOCX(entries, doc.options, data), title + '.docx'), `已下載「${title}.docx」，通常會在電腦的「下載」資料夾。${strokePages ? 'Word 檔不含筆順附頁，需要的話請用 PDF 或列印。' : ''}`);
+  const outPlan = {pages: [], paper: plan.paper};
+  const doPDF = () => run('正在製作 PDF', () => downloadPDF(outPlan, data, doc.options, undefined, allSVGs()), `已下載「${title}.pdf」，通常會在電腦的「下載」資料夾。`);
+  const doPrint = () => run('正在準備列印', () => printPages(outPlan, data, doc.options, undefined, allSVGs()), '已開啟列印視窗。若印出來太小，請在列印設定選「實際大小」或「100%」。');
+  const doWord = () => run('正在製作 Word', async () => { if (!docB) { downloadBlob(await bookDOCX(entries, doc.options, data), title + '.docx'); return; } downloadBlob(await bookDOCX(entries, doc.options, data), title + '（A）.docx'); await new Promise(r => setTimeout(r, 600)); downloadBlob(await bookDOCX(entries, docB.options, data), title + '（B）.docx'); }, `已下載「${title}${docB ? '（A）與（B）兩個檔案' : '.docx'}」，通常會在電腦的「下載」資料夾。${strokePages ? 'Word 檔不含筆順附頁，需要的話請用 PDF 或列印。' : ''}`);
 
   const seq = presetSequence(preset, shownTimes);
   const quiz = preset === 'quiz';
@@ -211,7 +233,7 @@ export default function SimpleCopybook({onAdvanced}) {
           <textarea id="custom-words" rows={3} className="hanzi-kai block w-full rounded-lg border-2 p-2 text-xl" value={customText} onChange={e => setCustomText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) addCustom(); }} placeholder="例如：聯絡簿上的訂正語詞"/>
           <button type="button" className="inline-flex items-center gap-2 rounded-xl border-2 border-blue-700 bg-blue-700 px-4 py-2 font-bold text-white hover:bg-blue-800 disabled:opacity-40" disabled={!customText.trim()} onClick={addCustom}><Plus size={18}/>加入語詞</button>
           {customMsg && <p role="status" className="rounded-lg bg-blue-50 p-2 text-blue-950">{customMsg}</p>}
-          <p className="text-[15px] text-slate-600">注音會依課本資料自動帶入，可在下一步檢查、修改。每個字都會當生字練習。</p>
+          <p className="text-[15px] text-slate-600">注音會依課本資料自動帶入，下一步可以檢查注音、點選哪些字是生字。</p>
         </div>}
       </section>
 
@@ -220,10 +242,12 @@ export default function SimpleCopybook({onAdvanced}) {
         {source === 'custom' ? <div className="space-y-2">
           {!custom.length && <p className="rounded-xl bg-slate-50 p-4 text-slate-600">還沒有輸入語詞。請在第 1 步打字後按「加入語詞」。</p>}
           {custom.map(c => { const miss = missingZhuyin(c.pinyin), poly = !miss && polyphones(c.word, zi).length; return <div key={c.id} className={'flex flex-wrap items-center gap-2 rounded-xl border-2 p-2 ' + (miss ? 'border-amber-400 bg-amber-50' : poly ? 'border-amber-300' : 'border-slate-200')}>
-            <span className="hanzi-kai min-w-20 text-2xl text-red-700">{c.word}</span>
+            <span className="flex gap-1" role="group" aria-label={`${c.word}：點字切換是否為生字`}>{[...c.word].map((ch, i) => { const on = customTargets(c).includes(i); return <button key={i} type="button" aria-pressed={on} title={on ? '生字（點一下改成不練習）' : '點一下設為生字'} onClick={() => toggleTarget(c.id, i)}
+              className={'hanzi-kai flex h-12 w-12 items-center justify-center rounded-lg border-2 text-3xl ' + (on ? 'border-red-400 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-800')}>{ch}</button>; })}</span>
             <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">注音
               <input className="min-w-0 flex-1 rounded-lg border-2 bg-white p-1.5 text-lg" value={c.pinyin} aria-label={`${c.word} 的注音，每個字用空白隔開`} onChange={e => updateCustomZhuyin(c.id, e.target.value)} onBlur={() => fixCustomZhuyin(c.id)}/></label>
             <button type="button" className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-700" aria-label={`刪除 ${c.word}`} onClick={() => removeCustom(c.id)}><X size={18}/></button>
+            {c.word.length > 1 && <p className="basis-full text-sm text-slate-600">紅色是生字，會描紅、留白；黑色的字每次都印黑字。點字可以切換。</p>}
             {miss && <p className="basis-full text-sm text-amber-900">「？」是查不到注音的字，請改成正確注音（每個字用空白隔開），或留著不印注音。</p>}
             {!miss && !!polyphones(c.word, zi).length && <p className="basis-full text-sm text-amber-900">「{polyphones(c.word, zi).join('、')}」有不只一種讀音，請確認注音是否正確。</p>}
           </div>; })}
@@ -284,6 +308,18 @@ export default function SimpleCopybook({onAdvanced}) {
             {quiz && <p className="text-[15px] text-slate-600">看注音寫國字一定會印注音。</p>}</fieldset>
         </div>
 
+        <fieldset className="space-y-3 rounded-xl border-2 border-dashed border-slate-300 p-3"><legend className="px-1 font-bold">差異化：同時印第二種練習方式</legend>
+          <div className="flex flex-wrap gap-2">{[[false, '不需要'], [true, '加印 B 版']].map(([v, l]) => <button key={String(v)} type="button" aria-pressed={diffOn === v} className={chip(diffOn === v)} onClick={() => setDiffOn(v)}>{l}</button>)}</div>
+          <p className="text-[15px] text-slate-600">同一份語詞印兩種難度，例如 A 版「描紅後自己寫」給大部分學生、B 版「描紅練習」給需要多一點提示的學生。兩版標題一樣，只在頁尾小字標示 A、B，學生不容易察覺。</p>
+          {diffOn && <div className="space-y-2">
+            <p className="font-bold">B 版練習方式</p>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="B 版練習方式">{SIMPLE_PRESETS.map(p => <button key={p.id} type="button" role="radio" aria-checked={presetB === p.id} className={chip(presetB === p.id) + ' text-sm'} onClick={() => { if ((p.id === 'quiz') !== (presetB === 'quiz')) setTimesB(p.defaultTimes); setPresetB(p.id); }}>{p.name}</button>)}</div>
+            <p className="font-bold">B 版每個語詞寫幾次</p>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="B 版每個語詞寫幾次">{(presetB === 'quiz' ? [1, 2, 3, 4] : [2, 3, 4, 5, 6, 8]).map(n => <button key={n} type="button" role="radio" aria-checked={shownTimesB === n} disabled={n < presetInfoB.min} className={chip(shownTimesB === n) + ' min-w-12 disabled:opacity-30'} onClick={() => setTimesB(n)}>{n} 次</button>)}</div>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700"><span>B 版生字依序：</span><Sequence small seq={presetSequence(presetB, shownTimesB)}/></div>
+            {presetB === preset && shownTimesB === shownTimes && <p className="text-sm text-amber-900">B 版和 A 版設定一樣，請換一種練習方式或次數。</p>}
+          </div>}
+        </fieldset>
         <fieldset className="space-y-2"><legend className="font-bold">筆順附頁</legend>
           <div className="flex flex-wrap gap-2">{[[false, '不需要'], [true, '加印筆順附頁']].map(([v, l]) => <button key={String(v)} type="button" aria-pressed={strokeAppendix === v} className={chip(strokeAppendix === v)} onClick={() => setStrokeAppendix(v)}>{l}</button>)}</div>
           <p className="text-[15px] text-slate-600">在學習單後面加印每個生字的筆順分解（一筆一格，紅色是這一筆），適合剛學寫字或需要筆順提示的孩子。只會加在 PDF 與列印，Word 檔不含。</p>
@@ -327,7 +363,7 @@ export default function SimpleCopybook({onAdvanced}) {
         <button type="button" className={btn + ' text-sm'} disabled={!ready || !!busy} onClick={doWord}><FileText size={16}/>Word 檔</button>
       </div>
       <p role="status" aria-live="polite" className="min-h-6 text-sm text-blue-900">
-        {message || shareNote || (!entries.length ? '' : loading ? '正在載入字形…' : `共 ${groups.length} 個語詞・${bookPages} 頁${strokePages ? `＋筆順附頁 ${strokePages} 頁` : ''}（A4）`)}
+        {message || shareNote || (!entries.length ? '' : loading ? '正在載入字形…' : `共 ${groups.length} 個語詞・${diffOn ? `A 版 ${bookPagesA} 頁＋B 版 ${bookPagesB} 頁` : `${bookPages} 頁`}${strokePages ? `＋筆順附頁 ${strokePages} 頁` : ''}（A4）`)}
       </p>
       {!!plan.tooLong.length && <p role="alert" className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">「{plan.tooLong.join('、')}」太長，一欄放不下，請把字格改成「一般」或選「只印生字」。</p>}
       {!!failedChars.length && <p role="alert" className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">網路不穩，有 {failedChars.length} 個字的字形還沒載入。<button type="button" className="font-bold underline" onClick={() => { setFailed({}); setRetry(n => n + 1); }}>重新載入</button></p>}
@@ -339,7 +375,7 @@ export default function SimpleCopybook({onAdvanced}) {
         <button type="button" className={btn + ' text-sm py-1.5'} onClick={copyShare} title="把目前的語詞與設定變成一個連結"><Link2 size={16}/>複製分享連結</button>
         {pages > 1 && <div className="ml-auto flex items-center gap-2">
           <button type="button" className={btn + ' px-2 py-1.5'} disabled={shown === 0} onClick={() => setPage(shown - 1)} aria-label="上一頁"><ChevronLeft size={18}/></button>
-          <span className="text-sm whitespace-nowrap">第 {shown + 1}／{pages} 頁</span>
+          <span className="text-sm whitespace-nowrap">{pageLabel(shown)}第 {shown + 1}／{pages} 頁</span>
           <button type="button" className={btn + ' px-2 py-1.5'} disabled={shown >= pages - 1} onClick={() => setPage(shown + 1)} aria-label="下一頁"><ChevronRight size={18}/></button>
         </div>}
       </div>}
