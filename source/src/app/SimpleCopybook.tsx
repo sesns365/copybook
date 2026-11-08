@@ -204,7 +204,7 @@ export default function SimpleCopybook({onAdvanced}) {
 
   const seq = presetSequence(preset, shownTimes);
   const quiz = preset === 'quiz';
-  const noZhuyin = custom.filter(c => missingZhuyin(c.pinyin) && groups.some(g => g.entries[0]?.id.startsWith(c.id + ':')));
+  const noZhuyin = !(showZhuyin || quiz) ? [] : custom.filter(c => missingZhuyin(c.pinyin) && groups.some(g => g.entries[0]?.id.startsWith(c.id + ':')));
   const [previewVisible, setPreviewVisible] = useState(false);
   useEffect(() => {
     const el = document.getElementById('simple-preview');
@@ -287,6 +287,16 @@ export default function SimpleCopybook({onAdvanced}) {
           </button>; })}
         </div>
 
+        <fieldset className="space-y-2 rounded-xl bg-slate-50 p-3"><legend className="sr-only">注音</legend>
+          <p className="font-bold">注音</p>
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="注音">
+            {[[true, '加注音', 'ㄓㄨˋ ㄧㄣ'], [false, '不加注音', '']].map(([v, l, z]) => { const on = (quiz || showZhuyin) === v; return <button key={String(v)} type="button" role="radio" aria-checked={on} disabled={quiz && !v} onClick={() => setShowZhuyin(v)}
+              className={'flex items-center justify-center gap-3 rounded-xl border-2 p-3 text-lg font-bold disabled:opacity-40 ' + (on ? 'border-blue-700 bg-blue-50 text-blue-900' : 'bg-white hover:bg-slate-50')}>
+              <span aria-hidden="true" className="hanzi-kai inline-flex h-11 items-center border border-slate-400 bg-white text-2xl leading-none text-slate-900"><span className="px-1.5">字</span>{z && <span className="flex h-full flex-col justify-center border-l border-slate-300 px-0.5 text-[9px] leading-tight">ㄗ<br/>ˋ</span>}</span>{l}</button>; })}
+          </div>
+          <p className="text-[15px] text-slate-600">{quiz ? '看注音寫國字一定會印注音。' : showZhuyin ? '預設會在每個字旁邊印注音。' : '不印注音，字格會變得比較窄，一頁可以放比較多語詞。'}</p>
+        </fieldset>
+
         <div className="space-y-2">
           <p className="font-bold">每個語詞寫幾次<span className="font-normal text-slate-600 text-sm">{quiz ? '（每次都只有注音）' : '（含第 1 次示範字）'}</span></p>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="每個語詞寫幾次">
@@ -298,14 +308,11 @@ export default function SimpleCopybook({onAdvanced}) {
           {!!missingParts.size && <p role="status" className="text-sm text-amber-900">「{[...missingParts].join('、')}」沒有部件資料，這些字改用描紅。</p>}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <fieldset className="space-y-2"><legend className="font-bold">印出內容</legend>
             <div className="flex flex-wrap gap-2">{[['word', '整個語詞'], ['character', '只印生字']].map(([v, l]) => <button key={v} type="button" aria-pressed={contentMode === v} className={chip(contentMode === v)} onClick={() => setContentMode(v)}>{l}</button>)}</div></fieldset>
           <fieldset className="space-y-2"><legend className="font-bold">字格大小</legend>
             <div className="flex flex-wrap gap-2">{[[20, '一般'], [25, '大'], [30, '特大']].map(([v, l]) => <button key={v} type="button" aria-pressed={cellSize === v} className={chip(cellSize === v)} onClick={() => setCellSize(v)}>{l}</button>)}</div></fieldset>
-          <fieldset className="space-y-2"><legend className="font-bold">注音</legend>
-            <div className="flex flex-wrap gap-2">{[[true, '顯示'], [false, '不顯示']].map(([v, l]) => <button key={String(v)} type="button" disabled={quiz} aria-pressed={(quiz || showZhuyin) === v} className={chip((quiz || showZhuyin) === v) + ' disabled:opacity-50'} onClick={() => setShowZhuyin(v)}>{l}</button>)}</div>
-            {quiz && <p className="text-[15px] text-slate-600">看注音寫國字一定會印注音。</p>}</fieldset>
         </div>
 
         <fieldset className="space-y-3 rounded-xl border-2 border-dashed border-slate-300 p-3"><legend className="px-1 font-bold">差異化：同時印第二種練習方式</legend>
