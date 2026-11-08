@@ -8,7 +8,7 @@ import {DEFAULT_BOOK, BOOKS, PUBLISHERS, GRADE_NAMES, getBook as baseGetBook} fr
 import {loadStrokeData, MISSING_STROKES} from './stroke-data';
 import {bookColumns, orderedBookEntries, bookPageSVG, bookDOCX, downloadBlob} from './copybook-export';
 import {automaticCopybookTitle} from './copybook-title';
-import {SIMPLE_PRESETS, MODE_LABEL, presetSequence, groupWords, buildSimpleDocument, buildZhuyinIndex, guessZhuyin, parseCustomWords, validCustomWord, normalizeZhuyin, missingZhuyin, customEntries, customLessonSnapshot, customBookSnapshot, CUSTOM_LESSON_ID, encodeShare, decodeShare} from './simple-copybook';
+import {SIMPLE_PRESETS, MODE_LABEL, presetSequence, groupWords, buildSimpleDocument, buildZhuyinIndex, guessZhuyin, parseCustomWords, validCustomWord, normalizeZhuyin, missingZhuyin, polyphones, customEntries, customLessonSnapshot, customBookSnapshot, CUSTOM_LESSON_ID, encodeShare, decodeShare} from './simple-copybook';
 import {downloadPDF, printPages} from './copybook-output';
 import {strokeOrderLayout, strokeOrderPageSVG} from './stroke-order-pages';
 
@@ -219,12 +219,13 @@ export default function SimpleCopybook({onAdvanced}) {
         <h2 id="s2" className={stepTitle}><span className={stepNo}>2</span>{source === 'book' ? '勾選要練習的語詞' : '檢查注音'}</h2>
         {source === 'custom' ? <div className="space-y-2">
           {!custom.length && <p className="rounded-xl bg-slate-50 p-4 text-slate-600">還沒有輸入語詞。請在第 1 步打字後按「加入語詞」。</p>}
-          {custom.map(c => { const miss = missingZhuyin(c.pinyin); return <div key={c.id} className={'flex flex-wrap items-center gap-2 rounded-xl border-2 p-2 ' + (miss ? 'border-amber-400 bg-amber-50' : 'border-slate-200')}>
+          {custom.map(c => { const miss = missingZhuyin(c.pinyin), poly = !miss && polyphones(c.word, zi).length; return <div key={c.id} className={'flex flex-wrap items-center gap-2 rounded-xl border-2 p-2 ' + (miss ? 'border-amber-400 bg-amber-50' : poly ? 'border-amber-300' : 'border-slate-200')}>
             <span className="hanzi-kai min-w-20 text-2xl text-red-700">{c.word}</span>
             <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">注音
               <input className="min-w-0 flex-1 rounded-lg border-2 bg-white p-1.5 text-lg" value={c.pinyin} aria-label={`${c.word} 的注音，每個字用空白隔開`} onChange={e => updateCustomZhuyin(c.id, e.target.value)} onBlur={() => fixCustomZhuyin(c.id)}/></label>
             <button type="button" className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-700" aria-label={`刪除 ${c.word}`} onClick={() => removeCustom(c.id)}><X size={18}/></button>
             {miss && <p className="basis-full text-sm text-amber-900">「？」是查不到注音的字，請改成正確注音（每個字用空白隔開），或留著不印注音。</p>}
+            {!miss && !!polyphones(c.word, zi).length && <p className="basis-full text-sm text-amber-900">「{polyphones(c.word, zi).join('、')}」有不只一種讀音，請確認注音是否正確。</p>}
           </div>; })}
         </div> : <>
         <p className="text-[15px] text-slate-600">紅色的字是本課生字。換到其他課次，已勾選的語詞會保留，可以一起印在同一份學習單。</p>

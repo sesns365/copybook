@@ -116,7 +116,13 @@ export function buildZhuyinIndex(entries) {
   for (const [c, m] of counts) index.set(c, [...m.entries()].sort((a, b) => b[1] - a[1])[0][0]);
   // 整個語詞在課本中出現過時，直接用課本注音（處理破音字）
   const words = new Map(entries.filter(e => String(e.pinyin || '').trim().split(/\s+/).length === e.word.length).map(e => [e.word, e.pinyin.trim()]));
-  return {index, words};
+  // 課本中出現過兩種以上讀音的字（破音字），自訂語詞用到時提醒確認
+  const multi = new Set([...counts].filter(([, m]) => m.size > 1).map(([c]) => c));
+  return {index, words, multi};
+}
+export function polyphones(word, zi) {
+  if (zi.words.has(word)) return [];
+  return [...new Set([...word].filter(c => zi.multi.has(c)))];
 }
 
 export function guessZhuyin(word, zi) {
