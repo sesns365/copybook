@@ -1,0 +1,11 @@
+教育部標準楷書字型檔 Version 5.1
+著作權人：中華民國教育部
+來源：https://language.moe.gov.tw/material/info?m=9fe3fe82-8bbf-44c0-961d-873ea079e284
+授權：創用 CC 姓名標示－禁止改作 3.0 臺灣
+授權條款：https://creativecommons.org/licenses/by-nd/3.0/tw/legalcode.zh-hant
+本站提供的字型檔為教育部原始檔，未修改。
+
+筆順資料來源：教育部《國字標準字體筆順學習網》
+https://stroke-order.learningweb.moe.edu.tw/
+本站筆畫資料及來源說明：/licenses/moe-supplement-attribution.txt
+教育部筆順網授權說明：https://stroke-order.learningweb.moe.edu.tw/page.jsp?ID=52
