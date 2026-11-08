@@ -46,7 +46,7 @@ export function groupWords(entries) {
   return [...groups.values()].map(g => ({...g, targets: [...new Set(g.entries.map(e => e.targetIdx))].sort((a, b) => a - b)}));
 }
 
-export function buildSimpleDocument({groups, preset, times, contentMode, cellSize, showZhuyin, title, titleCustom, missingParts = new Set(), fieldValues = {}}) {
+export function buildSimpleDocument({groups, preset, times, contentMode, cellSize, showZhuyin, title, titleCustom, missingParts = new Set(), fieldValues = {}, keepZhuyinRail = false, zhuyinOverride = {}}) {
   const seq = presetSequence(preset, times);
   const items = {}, selected = [];
   const defaultMode = preset === 'parts' ? 'parts' : preset === 'blank' ? 'blank' : 'trace';
@@ -75,13 +75,19 @@ export function buildSimpleDocument({groups, preset, times, contentMode, cellSiz
         if (isPrimary && !needsCells && !(preset === 'parts' && missingParts.has(char))) continue;
         seq.forEach((mode, r) => { cells[`${r}:${t}`] = cellFor(mode, char); });
       }
+      // 個別生字的注音（true 印注音／false 注音格空白）；不要注音格時不套用
+      if (keepZhuyinRail || showZhuyin) for (const t of targets) {
+        const want = zhuyinOverride[`${g.key}|${t}`];
+        if (typeof want !== 'boolean' || want === showZhuyin) continue;
+        seq.forEach((_, r) => { const k = `${r}:${t}`; cells[k] = {...(cells[k] || {}), showZhuyin: want}; });
+      }
       if (Object.keys(cells).length) items[entry.id] = {word: entry.word, cells};
     }
   }
   const options = {
     ...BOOK_DEFAULTS,
     title, titleCustom,
-    contentMode, cellSize, showZhuyin: quiz ? true : showZhuyin,
+    contentMode, cellSize, showZhuyin: quiz ? true : showZhuyin, keepZhuyinRail: quiz ? false : keepZhuyinRail,
     repetitions: seq.length,
     showModel: !quiz,
     blankLast: preset === 'traceBlank' || preset === 'progressive',

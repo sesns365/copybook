@@ -21,7 +21,7 @@ const readShared = () => {
   if (!m) return null;
   const s = decodeShare(m[1]);
   try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch {}
-  return s && s.v === 1 ? {lesson: s.l, picked: s.p, custom: s.c, preset: s.s, times: s.t, diffOn: s.d, presetB: s.sb, timesB: s.tb, contentMode: s.m, cellSize: s.z, showZhuyin: s.y, customTitle: s.h, shared: true} : null;
+  return s && s.v === 1 ? {lesson: s.l, picked: s.p, custom: s.c, preset: s.s, times: s.t, diffOn: s.d, presetB: s.sb, timesB: s.tb, contentMode: s.m, cellSize: s.z, zhuyinMode: s.zm || (s.y === false ? 'none' : 'show'), zhuyinOverride: s.zo, customTitle: s.h, shared: true} : null;
 };
 const GUIDE = 'copybook-tool:guide-closed';
 
@@ -80,7 +80,13 @@ export default function SimpleCopybook({onAdvanced}) {
   const [times, setTimes] = useState(Number.isInteger(saved.times) ? saved.times : 4);
   const [contentMode, setContentMode] = useState(saved.contentMode === 'character' ? 'character' : 'word');
   const [cellSize, setCellSize] = useState([20, 25, 30].includes(saved.cellSize) ? saved.cellSize : 20);
-  const [showZhuyin, setShowZhuyin] = useState(saved.showZhuyin !== false);
+  // 注音：show 加注音／blank 留空注音格／none 不要注音格；zhuyinOverride 是個別生字指定（true 印、false 空白）
+  const [zhuyinMode, setZhuyinMode] = useState(['show', 'blank', 'none'].includes(saved.zhuyinMode) ? saved.zhuyinMode : saved.showZhuyin === false ? 'none' : 'show');
+  const [zhuyinOverride, setZhuyinOverride] = useState(() => Object.fromEntries(Object.entries(saved.zhuyinOverride && typeof saved.zhuyinOverride === 'object' ? saved.zhuyinOverride : {}).filter(([, v]) => typeof v === 'boolean')));
+  const showZhuyin = zhuyinMode === 'show', keepZhuyinRail = zhuyinMode === 'blank';
+  const zhuyinOn = key => typeof zhuyinOverride[key] === 'boolean' ? zhuyinOverride[key] : showZhuyin;
+  const [zhuyinPanel, setZhuyinPanel] = useState(() => Object.keys(saved.zhuyinOverride || {}).length > 0);
+  const flipZhuyin = key => setZhuyinOverride(v => ({...v, [key]: !(typeof v[key] === 'boolean' ? v[key] : showZhuyin)}));
   const [strokeAppendix, setStrokeAppendix] = useState(saved.strokeAppendix === true);
   // 差異化：同一份語詞再印一種練習方式（B 版）
   const [diffOn, setDiffOn] = useState(saved.diffOn === true);
@@ -96,7 +102,7 @@ export default function SimpleCopybook({onAdvanced}) {
   const [message, setMessage] = useState('');
   const [customMsg, setCustomMsg] = useState('');
 
-  useEffect(() => { try { window.localStorage.setItem(STORE, JSON.stringify({lesson, picked, custom, preset, times, contentMode, cellSize, showZhuyin, customTitle, zoom, strokeAppendix, diffOn, presetB, timesB})); } catch {} }, [lesson, picked, custom, preset, times, contentMode, cellSize, showZhuyin, customTitle, zoom, strokeAppendix, diffOn, presetB, timesB]);
+  useEffect(() => { try { window.localStorage.setItem(STORE, JSON.stringify({lesson, picked, custom, preset, times, contentMode, cellSize, zhuyinMode, zhuyinOverride, customTitle, zoom, strokeAppendix, diffOn, presetB, timesB})); } catch {} }, [zhuyinMode, zhuyinOverride, lesson, picked, custom, preset, times, contentMode, cellSize, showZhuyin, customTitle, zoom, strokeAppendix, diffOn, presetB, timesB]);
 
   const addCustom = () => {
     const words = parseCustomWords(customText), ok = words.filter(validCustomWord), bad = words.filter(w => !validCustomWord(w));
@@ -116,7 +122,7 @@ export default function SimpleCopybook({onAdvanced}) {
   const fixCustomZhuyin = id => setCustom(v => v.map(c => c.id === id ? {...c, pinyin: normalizeZhuyin(c.pinyin, c.word.length)} : c));
   const removeCustom = id => { setCustom(v => v.filter(c => c.id !== id)); setPicked(v => v.filter(x => !x.startsWith(id + ':'))); };
   const copyShare = async () => {
-    const code = encodeShare({v: 1, l: lesson, p: picked.filter(id => !id.startsWith('custom:') || custom.some(c => id.startsWith(c.id + ':'))), c: custom, s: preset, t: times, d: diffOn, sb: presetB, tb: timesB, m: contentMode, z: cellSize, y: showZhuyin, h: customTitle});
+    const code = encodeShare({v: 1, l: lesson, p: picked.filter(id => !id.startsWith('custom:') || custom.some(c => id.startsWith(c.id + ':'))), c: custom, s: preset, t: times, d: diffOn, sb: presetB, tb: timesB, m: contentMode, z: cellSize, zm: zhuyinMode, zo: zhuyinOverride, h: customTitle});
     const url = window.location.href.split('#')[0] + '#ws=' + code;
     try { await navigator.clipboard.writeText(url); setMessage('已複製分享連結，貼給同事或家長，打開就是同一份學習單。'); }
     catch { window.prompt('請複製這個連結：', url); }
@@ -164,7 +170,7 @@ export default function SimpleCopybook({onAdvanced}) {
   const autoTitle = automaticCopybookTitle(pickedEntries, lesson, getLessonMeta, getBook);
   const title = customTitle.trim() ? customTitle : autoTitle;
   const missingParts = useMemo(() => new Set(preset === 'parts' ? [...needed].filter(c => data[c] === null) : []), [preset, needed, data]);
-  const doc = useMemo(() => buildSimpleDocument({groups, preset, times: shownTimes, contentMode, cellSize, showZhuyin, title, titleCustom: !!customTitle.trim(), missingParts, fieldValues: {班級: studentClass.trim(), 姓名: studentName.trim()}}), [groups, preset, shownTimes, contentMode, cellSize, showZhuyin, title, customTitle, missingParts, studentClass, studentName]);
+  const doc = useMemo(() => buildSimpleDocument({groups, preset, times: shownTimes, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, titleCustom: !!customTitle.trim(), missingParts, fieldValues: {班級: studentClass.trim(), 姓名: studentName.trim()}}), [groups, preset, shownTimes, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, customTitle, missingParts, studentClass, studentName]);
   const entries = useMemo(() => orderedBookEntries(all, doc.selected), [all, doc.selected]);
   const plan = useMemo(() => bookColumns(entries, doc.options), [entries, doc.options]);
   const targetChars = useMemo(() => [...new Set(groups.flatMap(g => g.targets.map(i => g.word[i])))], [groups]);
@@ -172,7 +178,7 @@ export default function SimpleCopybook({onAdvanced}) {
   const noStrokeChars = strokeAppendix ? targetChars.filter(c => data[c] === null) : [];
   const presetInfoB = SIMPLE_PRESETS.find(p => p.id === presetB), shownTimesB = Math.max(presetInfoB.min, timesB);
   const missingPartsB = useMemo(() => new Set(presetB === 'parts' ? [...needed].filter(c => data[c] === null) : []), [presetB, needed, data]);
-  const docB = useMemo(() => diffOn ? buildSimpleDocument({groups, preset: presetB, times: shownTimesB, contentMode, cellSize, showZhuyin, title, titleCustom: !!customTitle.trim(), missingParts: missingPartsB, fieldValues: {班級: studentClass.trim(), 姓名: studentName.trim()}}) : null, [diffOn, groups, presetB, shownTimesB, contentMode, cellSize, showZhuyin, title, customTitle, missingPartsB, studentClass, studentName]);
+  const docB = useMemo(() => diffOn ? buildSimpleDocument({groups, preset: presetB, times: shownTimesB, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, titleCustom: !!customTitle.trim(), missingParts: missingPartsB, fieldValues: {班級: studentClass.trim(), 姓名: studentName.trim()}}) : null, [diffOn, groups, presetB, shownTimesB, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, customTitle, missingPartsB, studentClass, studentName]);
   const planB = useMemo(() => docB ? bookColumns(entries, docB.options) : null, [docB, entries]);
   const bookPagesA = plan.pages.length, bookPagesB = planB ? planB.pages.length : 0;
   const bookPages = bookPagesA + bookPagesB, strokePages = strokeLayout.pages.length;
@@ -203,6 +209,7 @@ export default function SimpleCopybook({onAdvanced}) {
   const doWord = () => run('正在製作 Word', async () => { if (!docB) { downloadBlob(await bookDOCX(entries, doc.options, data), title + '.docx'); return; } downloadBlob(await bookDOCX(entries, doc.options, data), title + '（A）.docx'); await new Promise(r => setTimeout(r, 600)); downloadBlob(await bookDOCX(entries, docB.options, data), title + '（B）.docx'); }, `已下載「${title}${docB ? '（A）與（B）兩個檔案' : '.docx'}」，通常會在電腦的「下載」資料夾。${strokePages ? 'Word 檔不含筆順附頁，需要的話請用 PDF 或列印。' : ''}`);
 
   const seq = presetSequence(preset, shownTimes);
+  const changedZhuyin = groups.reduce((n, g) => n + g.targets.filter(i => zhuyinOn(`${g.key}|${i}`) !== showZhuyin).length, 0);
   const quiz = preset === 'quiz';
   const noZhuyin = !(showZhuyin || quiz) ? [] : custom.filter(c => missingZhuyin(c.pinyin) && groups.some(g => g.entries[0]?.id.startsWith(c.id + ':')));
   const [previewVisible, setPreviewVisible] = useState(false);
@@ -287,14 +294,26 @@ export default function SimpleCopybook({onAdvanced}) {
           </button>; })}
         </div>
 
-        <fieldset className="space-y-2 rounded-xl bg-slate-50 p-3"><legend className="sr-only">注音</legend>
+        <fieldset className="space-y-3 rounded-xl bg-slate-50 p-3"><legend className="sr-only">注音</legend>
           <p className="font-bold">注音</p>
-          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="注音">
-            {[[true, '加注音', 'ㄓㄨˋ ㄧㄣ'], [false, '不加注音', '']].map(([v, l, z]) => { const on = (quiz || showZhuyin) === v; return <button key={String(v)} type="button" role="radio" aria-checked={on} disabled={quiz && !v} onClick={() => setShowZhuyin(v)}
-              className={'flex items-center justify-center gap-3 rounded-xl border-2 p-3 text-lg font-bold disabled:opacity-40 ' + (on ? 'border-blue-700 bg-blue-50 text-blue-900' : 'bg-white hover:bg-slate-50')}>
-              <span aria-hidden="true" className="hanzi-kai inline-flex h-11 items-center border border-slate-400 bg-white text-2xl leading-none text-slate-900"><span className="px-1.5">字</span>{z && <span className="flex h-full flex-col justify-center border-l border-slate-300 px-0.5 text-[9px] leading-tight">ㄗ<br/>ˋ</span>}</span>{l}</button>; })}
+          <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="注音">
+            {[['show', '加注音', 'ㄗ', 'ˋ'], ['blank', '留空注音格', '', ''], ['none', '不要注音格', null, null]].map(([v, l, z, t]) => { const on = (quiz ? 'show' : zhuyinMode) === v; return <button key={v} type="button" role="radio" aria-checked={on} disabled={quiz && v !== 'show'} onClick={() => setZhuyinMode(v)}
+              className={'flex items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 px-2 py-3 text-base font-bold disabled:opacity-40 ' + (on ? 'border-blue-700 bg-blue-50 text-blue-900' : 'bg-white hover:bg-slate-50')}>
+              <span aria-hidden="true" className="hanzi-kai inline-flex h-11 items-center border border-slate-400 bg-white text-2xl leading-none text-slate-900"><span className="px-1.5">字</span>{z !== null && <span className="flex h-full w-3.5 flex-col items-center justify-center border-l border-slate-300 text-[9px] leading-tight">{z}<br/>{t}</span>}</span>{l}</button>; })}
           </div>
-          <p className="text-[15px] text-slate-600">{quiz ? '看注音寫國字一定會印注音。' : showZhuyin ? '預設會在每個字旁邊印注音。' : '不印注音，字格會變得比較窄，一頁可以放比較多語詞。'}</p>
+          <p className="text-[15px] text-slate-600">{quiz ? '看注音寫國字一定會印注音。' : zhuyinMode === 'show' ? '每個字旁邊印注音（預設）。' : zhuyinMode === 'blank' ? '保留注音格但不印注音，讓學生自己寫注音。字格大小和有注音時一樣。' : '不印注音也不留注音格，字格比較窄，一頁可以放比較多語詞。'}</p>
+          {!quiz && zhuyinMode !== 'none' && !!targetChars.length && <details className="rounded-lg border bg-white p-3" open={zhuyinPanel} onToggle={e => setZhuyinPanel(e.currentTarget.open)}>
+            <summary className="cursor-pointer font-bold">個別生字設定{changedZhuyin ? `（已調整 ${changedZhuyin} 個字）` : ''}</summary>
+            <p className="mt-2 text-[15px] text-slate-600">點生字切換注音格裡要不要印注音。{showZhuyin ? '例如想讓學生自己拼的字，就改成「空白」。' : '例如比較難的字，可以改成「印注音」給提示。'}非生字的注音照上面的設定。</p>
+            <div className="mt-3 flex flex-wrap gap-3">{groups.map(g => <div key={g.key} className="flex items-center gap-1 rounded-lg bg-slate-50 p-1.5">
+              {[...g.word].map((ch, i) => { if (!g.targets.includes(i)) return <span key={i} className="hanzi-kai px-1 text-xl text-slate-400">{ch}</span>;
+                const key = `${g.key}|${i}`, on = zhuyinOn(key);
+                return <button key={i} type="button" aria-pressed={on} aria-label={`${ch}：${on ? '印注音' : '注音格空白'}，點一下切換`} onClick={() => flipZhuyin(key)}
+                  className={'flex flex-col items-center rounded-lg border-2 px-2 py-1 ' + (on ? 'border-blue-600 bg-blue-50' : 'border-dashed border-slate-400 bg-white')}>
+                  <span className="hanzi-kai text-2xl text-red-700">{ch}</span><span className={'text-xs font-bold ' + (on ? 'text-blue-800' : 'text-slate-500')}>{on ? '印注音' : '空白'}</span></button>; })}
+            </div>)}</div>
+            {changedZhuyin > 0 && <button type="button" className="mt-3 text-sm font-bold text-blue-800 underline" onClick={() => setZhuyinOverride({})}>全部恢復成上面的設定</button>}
+          </details>}
         </fieldset>
 
         <div className="space-y-2">
