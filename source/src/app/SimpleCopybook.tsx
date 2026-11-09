@@ -58,16 +58,6 @@ function Sequence({seq, small = false}) {
       style={{backgroundImage: 'linear-gradient(#0001,#0001),linear-gradient(#0001,#0001)', backgroundSize: '1px 100%,100% 1px', backgroundPosition: 'center', backgroundRepeat: 'no-repeat'}}>{SWATCH[m]}</span>)}</span>;
 }
 
-// 依孩子的情況推薦練習方式（老師可再自行調整）
-const RECOMMEND = [
-  {label: '一、二年級', preset: 'traceBlank', times: 4},
-  {label: '三、四年級', preset: 'progressive', times: 5},
-  {label: '五、六年級', preset: 'blank', times: 3},
-  {label: '需要多一點提示', preset: 'traceParts', times: 5},
-  {label: '還在學字形結構', preset: 'fullSteps', times: 6},
-  {label: '小考、複習', preset: 'quiz', times: 1},
-];
-
 // 名詞說明：每一種格子的樣子
 function ModeLegend() {
   const rows = [['model', '示範字', '黑色完整的字，先看清楚再寫'], ['trace', '描紅', '淡紅色的字，沿著筆畫描寫'], ['gray', '描灰', '更淡的灰色字，提示少一點'], ['parts', '部件提示', '只印字的一部分，其餘自己補完整'], ['blank', '自己寫', '空格，不看提示自己寫']];
@@ -428,11 +418,6 @@ export default function SimpleCopybook({onAdvanced}) {
             <Sequence small seq={seq.slice(0, 8)}/>
             <span className="ml-auto inline-flex items-center gap-1 rounded-lg border-2 border-blue-700 px-2.5 py-1 text-sm font-bold text-blue-900">{presetOpen ? '收起' : '換練習方式'}<ChevronDown size={16} className={presetOpen ? 'rotate-180' : ''}/></span>
           </summary>
-          <div className="space-y-2 border-t bg-amber-50/60 p-3">
-            <p className="font-bold">不知道選哪個？依孩子的情況直接套用：</p>
-            <div className="flex flex-wrap gap-2">{RECOMMEND.map(r => <button key={r.label} type="button" className="min-h-10 rounded-xl border-2 border-amber-300 bg-white px-3 py-1.5 text-left text-sm font-bold hover:bg-amber-50" onClick={() => { const p = SIMPLE_PRESETS.find(x => x.id === r.preset); setPreset(p.id); setTimes(r.times); setPresetOpen(false); }}>
-              {r.label}<span className="block text-xs font-normal text-slate-600">{SIMPLE_PRESETS.find(x => x.id === r.preset).name}・{r.times} 次</span></button>)}</div>
-          </div>
           <div className="border-t px-3 pt-3"><ModeLegend/></div>
           <div className="grid gap-2 p-3 sm:grid-cols-2" role="radiogroup" aria-label="練習方式">
             {SIMPLE_PRESETS.map(p => { const on = p.id === preset; return <button key={p.id} type="button" role="radio" aria-checked={on} onClick={() => choosePreset(p)}
