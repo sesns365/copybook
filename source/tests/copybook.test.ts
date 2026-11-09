@@ -72,3 +72,24 @@ describe('學習單文件與排版', () => {
     expect(copybookComponentMapping('樂', 15, {}, {}).slice(11)).toEqual([0, 0, 0, 0]);
   });
 });
+
+describe('114 學年度下學期教材', () => {
+  it('三家出版社一到六年級下學期都有課次，注音音節數與語詞字數一致', async () => {
+    const {BOOKS, getLessonMeta} = await import('../src/app/curriculum-source');
+    const source = (await import('../src/app/curriculum-source')).default as Record<string, any[]>;
+    const b = BOOKS.filter(x => x.semester === 'b');
+    expect(b.length).toBe(18);
+    for (const book of b) {
+      expect(book.lessons.length).toBeGreaterThanOrEqual(9);
+      expect(book.label).toContain('下學期');
+      for (const id of book.lessons) {
+        expect(getLessonMeta(id)?.title).toBeTruthy();
+        for (const e of source[id]) {
+          expect(e.pinyin.split(' ').length).toBe([...e.word].length);
+          expect(e.pinyin).not.toContain('?');
+          expect(e.targetIdx).toBeLessThan([...e.word].length);
+        }
+      }
+    }
+  });
+});

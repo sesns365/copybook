@@ -4,7 +4,7 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {Download, Printer, FileText, ChevronLeft, ChevronRight, SlidersHorizontal, X, Maximize2, Plus, BookOpen, PencilLine, Lightbulb, ChevronDown} from 'lucide-react';
 import {useCurriculum} from './CurriculumTitle';
 import {teachingCurriculum} from './curriculum-settings';
-import {DEFAULT_BOOK, BOOKS, PUBLISHERS, GRADE_NAMES, getBook as baseGetBook} from './curriculum-source';
+import {DEFAULT_BOOK, BOOKS, PUBLISHERS, GRADE_NAMES, SEMESTERS, getBook as baseGetBook} from './curriculum-source';
 import {loadStrokeData, MISSING_STROKES} from './stroke-data';
 import {bookColumns, orderedBookEntries, bookPageSVG, bookDOCX, downloadBlob} from './copybook-export';
 import {automaticCopybookTitle} from './copybook-title';
@@ -29,14 +29,16 @@ function SimplePicker({lesson, onChange, getLessonMeta}) {
   const current = lesson ? getLessonMeta(lesson) : null;
   const book = BOOKS.find(b => b.id === current?.bookId) || null;
   // 第一次使用不預選：出版社、年級都選好才決定課本
-  const [pub, setPub] = useState(book?.publisher || ''), [grade, setGrade] = useState(book?.grade || 0);
-  useEffect(() => { if (book) { setPub(book.publisher); setGrade(book.grade); } }, [book?.id]);
-  const pick = (publisher, g) => { setPub(publisher); setGrade(g); const b = publisher && g ? BOOKS.find(x => x.publisher === publisher && x.grade === g) : null; if (b && b.lessons.length) onChange(b.lessons[0]); };
+  // 學期預設依日期：2～7 月是下學期，其餘是上學期
+  const [pub, setPub] = useState(book?.publisher || ''), [grade, setGrade] = useState(book?.grade || 0), [sem, setSem] = useState(book?.semester || (() => { const m = new Date().getMonth() + 1; return m >= 2 && m <= 7 ? 'b' : 'a'; })());
+  useEffect(() => { if (book) { setPub(book.publisher); setGrade(book.grade); setSem(book.semester || 'a'); } }, [book?.id]);
+  const pick = (publisher, g, sm = sem) => { setPub(publisher); setGrade(g); setSem(sm); const b = publisher && g ? BOOKS.find(x => x.publisher === publisher && x.grade === g && x.semester === sm) : null; if (b && b.lessons.length) onChange(b.lessons[0]); };
   const seg = on => 'rounded-xl border-2 px-4 py-2 font-bold ' + (on ? 'border-blue-700 bg-blue-50 text-blue-900' : 'bg-white hover:bg-slate-50');
   return <div className="space-y-3">
     {!book && <p role="status" className="rounded-xl border-2 border-blue-300 bg-blue-50 p-3 font-bold text-blue-900">請先選出版社和年級{pub && !grade ? '：還差年級' : !pub && grade ? '：還差出版社' : ''}</p>}
     <div className="space-y-1"><p className="font-bold">出版社</p><div className="flex flex-wrap gap-2" role="radiogroup" aria-label="出版社">{PUBLISHERS.map(p => <button key={p.id} type="button" role="radio" aria-checked={pub === p.id} className={seg(pub === p.id)} onClick={() => pick(p.id, grade)}>{p.name}</button>)}</div></div>
-    <div className="space-y-1"><p className="font-bold">年級（上學期）</p><div className="flex flex-wrap gap-2" role="radiogroup" aria-label="年級">{GRADE_NAMES.map((n, i) => <button key={n} type="button" role="radio" aria-checked={grade === i + 1} className={seg(grade === i + 1) + ' min-w-12'} onClick={() => pick(pub, i + 1)}>{n}</button>)}</div></div>
+    <div className="space-y-1"><p className="font-bold">年級</p><div className="flex flex-wrap gap-2" role="radiogroup" aria-label="年級">{GRADE_NAMES.map((n, i) => <button key={n} type="button" role="radio" aria-checked={grade === i + 1} className={seg(grade === i + 1) + ' min-w-12'} onClick={() => pick(pub, i + 1)}>{n}</button>)}</div></div>
+    <div className="space-y-1"><p className="font-bold">學期</p><div className="flex flex-wrap gap-2" role="radiogroup" aria-label="學期">{SEMESTERS.map(x => <button key={x.id} type="button" role="radio" aria-checked={sem === x.id} className={seg(sem === x.id)} onClick={() => pick(pub, grade, x.id)}>{x.name}</button>)}</div></div>
     {book && <label className="block space-y-1"><span className="font-bold">課次</span>
       <select className="block w-full max-w-md rounded-lg border-2 bg-white p-2 text-lg" value={lesson} onChange={e => onChange(e.target.value)}>
         {book.lessons.map(id => { const l = getLessonMeta(id); return <option key={id} value={id}>第 {l.number} 課　{l.title}</option>; })}
@@ -676,7 +678,7 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
           <div><dt className="font-bold">簡易模式和進階模式有什麼不同？</dt><dd>簡易模式照 4 個步驟就能印，適合大部分情況。進階模式可以拖曳語詞位置、逐格調整提示，並儲存好幾份學習單。切到進階模式時，簡易模式的語詞和設定會自動帶過去並儲存；在進階模式的修改不會回到簡易模式。</dd></div>
           <div><dt className="font-bold">想讓每個學生拿到不同難度？</dt><dd>第 3 步打開「更多設定」，選「A、B 兩版」或「A、B、C 三版」，每一版各選練習方式，再依學生程度發下不同版本。</dd></div>
           <div><dt className="font-bold">只有手機可以用嗎？</dt><dd>可以。按「下載 PDF」存到手機，再用印表機 App 或傳到電腦列印。</dd></div>
-          <div><dt className="font-bold">目前有哪些教材？</dt><dd>南一、康軒、翰林一到六年級上學期。下學期的語詞可以用「自己輸入語詞」。</dd></div>
+          <div><dt className="font-bold">目前有哪些教材？</dt><dd>南一、康軒、翰林一到六年級，上學期和下學期（114 學年度）都有。課本沒有的語詞，可以到進階模式用「自己輸入語詞」。</dd></div>
         </dl>
       </details>
       <div className="rounded-2xl border border-dashed bg-white p-4 text-[15px] text-slate-600 space-y-2">

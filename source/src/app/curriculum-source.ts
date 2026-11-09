@@ -11,7 +11,8 @@ Object.keys(legacy).forEach((id,i)=>{LESSON_META[id]={id,bookId:DEFAULT_BOOK,num
 for(const l of additional){source[l.id]=l.entries;LESSON_META[l.id]={id:l.id,bookId:l.bookId,number:l.number,title:l.title}}
 source[CUSTOM_LESSON]=[];
 LESSON_META[CUSTOM_LESSON]={id:CUSTOM_LESSON,bookId:CUSTOM_BOOK,number:1,title:'自訂生字'};
-export const BOOKS=PUBLISHERS.flatMap(p=>GRADE_NAMES.map((n,i)=>{const id=`${p.id}-${i+1}a`;return {id,publisher:p.id,grade:i+1,label:`${p.name}版・${n}年級上學期`,lessons:Object.values(LESSON_META).filter(l=>l.bookId===id).sort((a,b)=>a.number-b.number).map(l=>l.id)}}));
+export const SEMESTERS=[{id:'a',name:'上學期'},{id:'b',name:'下學期'}] as const;
+export const BOOKS:{id:string;publisher:string;grade:number;semester?:'a'|'b';label:string;lessons:string[]}[]=PUBLISHERS.flatMap(p=>GRADE_NAMES.flatMap((n,i)=>SEMESTERS.map(sm=>{const id=`${p.id}-${i+1}${sm.id}`;return {id,publisher:p.id,grade:i+1,semester:sm.id,label:`${p.name}版・${n}年級${sm.name}`,lessons:Object.values(LESSON_META).filter(l=>l.bookId===id).sort((a,b)=>a.number-b.number).map(l=>l.id)}})));
 BOOKS.push({id:CUSTOM_BOOK,publisher:'custom',grade:0,label:'老師自訂教材',lessons:[CUSTOM_LESSON]});
 export type CustomLesson={title:string;number:number;version:number;deleted:boolean;importFingerprint?:string};
 export const isCustomLesson=(id:unknown):id is string=>typeof id==='string'&&(id===CUSTOM_LESSON||/^teacher-custom-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id));
