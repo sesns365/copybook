@@ -11,7 +11,7 @@ export const SIMPLE_PRESETS = [
   {id: 'progressive', name: '漸進練習', note: '描紅 → 描灰 → 自己寫', stages: ['trace', 'gray'], last: 'blank', min: 3, defaultTimes: 5},
   {id: 'traceParts', name: '描紅＋部件提示', note: '描紅 → 部件提示 → 自己寫', stages: ['trace', 'parts'], last: 'blank', min: 4, defaultTimes: 5},
   {id: 'fullSteps', name: '四階段練習', note: '描紅 → 描灰 → 部件提示 → 自己寫', stages: ['trace', 'gray', 'parts'], last: 'blank', min: 5, defaultTimes: 6},
-  {id: 'parts', name: '部件提示', note: '先寫部分部件，再補完整', stages: ['parts'], min: 2, defaultTimes: 3},
+  {id: 'parts', name: '部件提示', note: '一部分印黑色，其餘描灰', stages: ['parts'], min: 2, defaultTimes: 3},
   {id: 'blank', name: '看示範自己寫', note: '只有示範字，其餘留白', stages: ['blank'], min: 2, defaultTimes: 3},
   {id: 'quiz', name: '看注音寫國字', note: '不印國字，只有注音（小考、複習用）', min: 1, defaultTimes: 1},
   {id: 'custom', name: '自訂組合', note: '每一次要描紅、描灰、部件或自己寫，自己排', min: 2, defaultTimes: 5},

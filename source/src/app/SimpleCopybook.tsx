@@ -62,7 +62,7 @@ function Sequence({seq, small = false}) {
 
 // 名詞說明：每一種格子的樣子
 function ModeLegend() {
-  const rows = [['model', '示範字', '黑色完整的字，先看清楚再寫'], ['trace', '描紅', '淡紅色的字，沿著筆畫描寫'], ['gray', '描灰', '更淡的灰色字，提示少一點'], ['parts', '部件提示', '只印字的一部分，其餘自己補完整'], ['blank', '自己寫', '空格，不看提示自己寫']];
+  const rows = [['model', '示範字', '黑色完整的字，先看清楚再寫'], ['trace', '描紅', '淡紅色的字，沿著筆畫描寫'], ['gray', '描灰', '更淡的灰色字，提示少一點'], ['parts', '部件提示', '字的一部分印黑色，其餘描灰；要改成描紅或空白，請到進階模式逐格設定'], ['blank', '自己寫', '空格，不看提示自己寫']];
   return <dl className="grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">{rows.map(([m, t, d]) => <div key={m} className="flex items-center gap-2"><Sequence small seq={[m]}/><dt className="font-bold whitespace-nowrap">{t}</dt><dd className="text-slate-600">{d}</dd></div>)}</dl>;
 }
 
