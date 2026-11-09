@@ -32,17 +32,21 @@ const FAVS = 'copybook-tool:favorites';
 
 // 簡易版選課：出版社、年級用按鈕，課次用下拉選單
 function SimplePicker({lesson, onChange, getLessonMeta}) {
-  const current = getLessonMeta(lesson);
-  const book = BOOKS.find(b => b.id === current?.bookId) || BOOKS.find(b => b.id === DEFAULT_BOOK);
-  const pick = (publisher, grade) => { const b = BOOKS.find(x => x.publisher === publisher && x.grade === grade); if (b?.lessons.length) onChange(b.lessons[0]); };
+  const current = lesson ? getLessonMeta(lesson) : null;
+  const book = BOOKS.find(b => b.id === current?.bookId) || null;
+  // 第一次使用不預選：出版社、年級都選好才決定課本
+  const [pub, setPub] = useState(book?.publisher || ''), [grade, setGrade] = useState(book?.grade || 0);
+  useEffect(() => { if (book) { setPub(book.publisher); setGrade(book.grade); } }, [book?.id]);
+  const pick = (publisher, g) => { setPub(publisher); setGrade(g); const b = publisher && g ? BOOKS.find(x => x.publisher === publisher && x.grade === g) : null; if (b && b.lessons.length) onChange(b.lessons[0]); };
   const seg = on => 'rounded-xl border-2 px-4 py-2 font-bold ' + (on ? 'border-blue-700 bg-blue-50 text-blue-900' : 'bg-white hover:bg-slate-50');
   return <div className="space-y-3">
-    <div className="space-y-1"><p className="font-bold">出版社</p><div className="flex flex-wrap gap-2" role="radiogroup" aria-label="出版社">{PUBLISHERS.map(p => <button key={p.id} type="button" role="radio" aria-checked={book.publisher === p.id} className={seg(book.publisher === p.id)} onClick={() => pick(p.id, book.grade)}>{p.name}</button>)}</div></div>
-    <div className="space-y-1"><p className="font-bold">年級（上學期）</p><div className="flex flex-wrap gap-2" role="radiogroup" aria-label="年級">{GRADE_NAMES.map((n, i) => <button key={n} type="button" role="radio" aria-checked={book.grade === i + 1} className={seg(book.grade === i + 1) + ' min-w-12'} onClick={() => pick(book.publisher, i + 1)}>{n}</button>)}</div></div>
-    <label className="block space-y-1"><span className="font-bold">課次</span>
+    {!book && <p role="status" className="rounded-xl border-2 border-blue-300 bg-blue-50 p-3 font-bold text-blue-900">請先選出版社和年級{pub && !grade ? '：還差年級' : !pub && grade ? '：還差出版社' : ''}</p>}
+    <div className="space-y-1"><p className="font-bold">出版社</p><div className="flex flex-wrap gap-2" role="radiogroup" aria-label="出版社">{PUBLISHERS.map(p => <button key={p.id} type="button" role="radio" aria-checked={pub === p.id} className={seg(pub === p.id)} onClick={() => pick(p.id, grade)}>{p.name}</button>)}</div></div>
+    <div className="space-y-1"><p className="font-bold">年級（上學期）</p><div className="flex flex-wrap gap-2" role="radiogroup" aria-label="年級">{GRADE_NAMES.map((n, i) => <button key={n} type="button" role="radio" aria-checked={grade === i + 1} className={seg(grade === i + 1) + ' min-w-12'} onClick={() => pick(pub, i + 1)}>{n}</button>)}</div></div>
+    {book && <label className="block space-y-1"><span className="font-bold">課次</span>
       <select className="block w-full max-w-md rounded-lg border-2 bg-white p-2 text-lg" value={lesson} onChange={e => onChange(e.target.value)}>
         {book.lessons.map(id => { const l = getLessonMeta(id); return <option key={id} value={id}>第 {l.number} 課　{l.title}</option>; })}
-      </select></label>
+      </select></label>}
     <p className="text-[15px] text-slate-600">不確定是哪一個版本？看孩子國語課本封面上的出版社和年級。</p>
   </div>;
 }
@@ -117,7 +121,7 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
   const [customText, setCustomText] = useState('');
   const [guide, setGuide] = useState(() => { try { return !window.localStorage.getItem(GUIDE); } catch { return true; } });
   const [shareNote, setShareNote] = useState(saved.shared ? '已開啟同事分享的學習單設定。' : '');
-  const [lesson, setLesson] = useState(saved.lesson && getLessonMeta(saved.lesson) ? saved.lesson : firstLesson);
+  const [lesson, setLesson] = useState(saved.lesson && getLessonMeta(saved.lesson) ? saved.lesson : '');
   const [picked, setPicked] = useState(() => (saved.picked || []).filter(id => byId.has(id) || String(id).startsWith('custom:')));
   const [preset, setPreset] = useState(SIMPLE_PRESETS.some(p => p.id === saved.preset) ? saved.preset : 'traceBlank');
   const [times, setTimes] = useState(Number.isInteger(saved.times) ? saved.times : 4);
@@ -204,7 +208,7 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
   const clearLesson = () => setPicked(v => v.filter(id => byId.get(id)?.lesson !== lesson));
   const [reviewSpan, setReviewSpan] = useState(2), [reviewCount, setReviewCount] = useState(10);
   const pickReview = () => {
-    const meta = getLessonMeta(lesson), book = BOOKS.find(b => b.id === meta?.bookId);
+    const meta = lesson && getLessonMeta(lesson), book = BOOKS.find(b => b.id === meta?.bookId);
     if (!book) return;
     const at = book.lessons.indexOf(lesson), range = new Set(book.lessons.slice(Math.max(0, at - reviewSpan), at + 1));
     const pool = groupWords(all.filter(e => range.has(e.lesson))).filter(g => !isPicked(g));
@@ -256,7 +260,7 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
   const loading = [...needed].some(c => !(c in data) && !(c in failed));
   const failedChars = [...needed].filter(c => c in failed);
 
-  const autoTitle = automaticCopybookTitle(pickedEntries, lesson, getLessonMeta, getBook);
+  const autoTitle = automaticCopybookTitle(pickedEntries, lesson || firstLesson, getLessonMeta, getBook);
   const title = customTitle.trim() ? customTitle : autoTitle;
   const presetInfoB = SIMPLE_PRESETS.find(p => p.id === presetB), shownTimesB = Math.max(presetInfoB.min, timesB);
   const presetInfoC = SIMPLE_PRESETS.find(p => p.id === presetC), shownTimesC = Math.max(presetInfoC.min, timesC);
@@ -351,9 +355,9 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
       // 同一次編輯再切過去時，更新上次存的那一份，不另存新的
       const rows = (await localApi({action: 'worksheets'})).rows, prev = rows.find(r => r.id === savedIds.current[x.v] && r.version === savedVers.current[x.v]);  // 在進階模式改過就不覆蓋，另存新的
       const id = prev ? prev.id : crypto.randomUUID(), version = prev ? prev.version : 0;
-      try { const r = await localApi({action: 'saveWorksheet', id, version, title: t, config: {layout: 'copybook', lesson, selected: x.doc.selected, options, ...content}}); savedIds.current[x.v] = id; savedVers.current[x.v] = r.version; saved.push(x.v); if (isA) { aId = id; aVersion = r.version; } } catch {}
+      try { const r = await localApi({action: 'saveWorksheet', id, version, title: t, config: {layout: 'copybook', lesson: lesson || firstLesson, selected: x.doc.selected, options, ...content}}); savedIds.current[x.v] = id; savedVers.current[x.v] = r.version; saved.push(x.v); if (isA) { aId = id; aVersion = r.version; } } catch {}
     }
-    onAdvanced?.({lesson, selected: doc.selected, options: aOptions, entrySnapshots: entries.filter(e => e.lesson === CUSTOM_LESSON_ID), lessonSnapshots: customLessonSnapshot, bookSnapshots: customBookSnapshot, savedId: aId, savedVersion: aVersion, extraSaved: saved});
+    onAdvanced?.({lesson: lesson || firstLesson, selected: doc.selected, options: aOptions, entrySnapshots: entries.filter(e => e.lesson === CUSTOM_LESSON_ID), lessonSnapshots: customLessonSnapshot, bookSnapshots: customBookSnapshot, savedId: aId, savedVersion: aVersion, extraSaved: saved});
   };
   const handoffRef = React.useRef(null);
   handoffRef.current = toAdvanced;
@@ -422,13 +426,13 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
             <span>{[...g.word].map((c, i) => <span key={i} className={g.targets.includes(i) ? 'text-red-700' : ''}>{c}</span>)}</span>
             <span className="sr-only">生字：{g.targets.map(i => g.word[i]).join('、')}</span>
           </button>; })}
-          {!lessonGroups.length && <p className="text-slate-600">這一課沒有語詞資料，請換一課。</p>}
+          {!lessonGroups.length && <p className="text-slate-600">{lesson ? '這一課沒有語詞資料，請換一課。' : '請先在第 1 步選出版社和年級，這裡就會出現語詞。'}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" className={btn} onClick={addLesson} disabled={!lessonGroups.length || lessonGroups.every(isPicked)}>全選這一課</button>
           <button type="button" className={btn} onClick={clearLesson} disabled={!lessonGroups.some(g => g.entries.some(e => pickedSet.has(e.id)))}>取消這一課</button>
         </div>
-        <details className="rounded-xl border bg-white p-3">
+        {!!lesson && <details className="rounded-xl border bg-white p-3">
           <summary className="cursor-pointer font-bold">綜合複習：從前幾課隨機抽語詞</summary>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-1">範圍<select className="rounded-lg border-2 bg-white p-1.5" value={reviewSpan} onChange={e => setReviewSpan(+e.target.value)}>{[[1, '本課和前 1 課'], [2, '本課和前 2 課'], [3, '本課和前 3 課'], [99, '第 1 課到本課']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
@@ -436,7 +440,7 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
             <button type="button" className={btn} onClick={pickReview}>隨機抽語詞</button>
           </div>
           <p className="mt-1 text-[15px] text-slate-600">會從範圍內還沒勾的語詞隨機加入；不滿意可以按「全部清除」再抽一次。</p>
-        </details></>}
+        </details>}</>}
         {!!groups.length && <div className="rounded-xl bg-slate-50 p-3 space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-bold">已選 {groups.length} 個語詞{lessonCount > 1 ? `（${lessonCount} 課${hasCustom ? '＋自訂' : ''}）` : hasCustom && lessonCount ? '（課本＋自訂）' : ''}</p>
