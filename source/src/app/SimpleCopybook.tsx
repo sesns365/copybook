@@ -13,6 +13,7 @@ import {SIMPLE_PRESETS, MODE_LABEL, CUSTOM_MODES, cleanCustomSeq, presetSequence
 import {downloadPDF, printPages} from './copybook-output';
 import {strokeOrderLayout, strokeOrderPageSVG} from './stroke-order-pages';
 import {captureCopybookContent} from './copybook-preservation';
+import {copybookComponentMapping} from './copybook-grouping';
 import {localApi} from '../local-api';
 
 const STORE = 'copybook-tool:simple:v1';
@@ -81,7 +82,7 @@ function CustomSeqEditor({seq, times, onChange, label = ''}) {
         className="flex flex-col items-center gap-1 rounded-lg p-1 hover:bg-white"><Sequence seq={[m]}/><span className="text-xs text-slate-600">第 {i + 2} 次<br/><b className="text-blue-900">{MODE_LABEL[m]}</b></span></button>)}
     </div>
     <div className="flex flex-wrap items-center gap-1.5 text-sm"><span className="text-slate-600">全部改成：</span>{CUSTOM_MODES.map(m => <button key={m} type="button" className="rounded-lg border bg-white px-2 py-0.5 font-bold" onClick={() => setAll(m)}>{MODE_LABEL[m]}</button>)}</div>
-    <p className="text-sm text-slate-600">次數在下面「每個語詞寫幾次」調整；沒有部件資料的字會改用描紅。</p>
+    <p className="text-sm text-slate-600">次數在下面「每個語詞寫幾次」調整；沒辦法分成部件的字會改用描紅。</p>
   </div>;
 }
 
@@ -104,7 +105,7 @@ const stepNo = 'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded
 const chip = (on) => 'rounded-xl border-2 px-3 py-2 font-bold ' + (on ? 'border-blue-700 bg-blue-50 text-blue-900' : 'bg-white hover:bg-slate-50');
 const btn = 'inline-flex items-center justify-center gap-2 rounded-xl border-2 bg-white px-4 py-2 font-bold hover:bg-slate-50 disabled:opacity-40';
 
-export default function SimpleCopybook({onAdvanced}) {
+export default function SimpleCopybook({onAdvanced, onRegister}) {
   const {getBook, getLessonMeta} = useCurriculum();
   const bookAll = useMemo(() => Object.values(teachingCurriculum({}, {}, false)).flat(), []);
   const zi = useMemo(() => buildZhuyinIndex(bookAll), [bookAll]);
@@ -263,7 +264,9 @@ export default function SimpleCopybook({onAdvanced}) {
   // 每一版各自的文件與排版；姓名只影響頁首，輸出時再填
   const versions = useMemo(() => verDefs.map(d => {
     const usesParts = groups.some(g => presetSequence(d.preset, d.times + (wordDelta[g.key] || 0), d.customSeq).includes('parts')) || presetSequence(d.preset, d.times, d.customSeq).includes('parts');
-    const missingParts = new Set(usesParts ? [...needed].filter(c => data[c] === null) : []);
+    // 沒有筆畫資料，或沒辦法分成部件（例如「一」「人」）的字，部件提示改印描紅
+    const noSplit = c => { if (data[c] === null) return true; if (!data[c]) return false; const m = copybookComponentMapping(c, data[c].strokes.length, {}, {}); return !m.includes(0) || m.every(g => g === 0); };
+    const missingParts = new Set(usesParts ? [...needed].filter(noSplit) : []);
     const doc = buildSimpleDocument({groups, preset: d.preset, times: d.times, customSeq: d.customSeq, partsTone, wordDelta, crossOpacity, traceTone, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, titleCustom: !!customTitle.trim(), missingParts, fieldValues: {班級: studentClass.trim(), 姓名: studentName.trim()}});
     return {...d, doc, missingParts};
   }), [JSON.stringify(verDefs), groups, partsTone, wordDelta, crossOpacity, traceTone, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, customTitle, needed, data, studentClass, studentName]);
@@ -333,17 +336,28 @@ export default function SimpleCopybook({onAdvanced}) {
     setStrokeAppendix(x.strokeAppendix === true); setAnswerKey(x.answerKey === true); setPartsTone(['black', 'red', 'gray'].includes(x.partsTone) ? x.partsTone : 'black'); setMessage(`已套用常用設定「${f.name}」。`); };
   const saveFav = () => { const name = favName.trim().slice(0, 16) || `設定 ${favs.length + 1}`; setFavs(v => [...v.filter(f => f.name !== name), {name, s: favSnapshot()}].slice(-12)); setFavName(''); setFavAdding(false); setMessage(`已存成常用設定「${name}」，下次在第 3 步上方點一下就能套用。`); };
   // 帶到進階模式：A 版直接開啟；B、C 版另存成已存學習單，在進階模式的「開啟或管理已存學習單」可找到
+  const lastHandoff = React.useRef('');
+  const savedIds = React.useRef({}), savedVers = React.useRef({});
   const toAdvanced = async () => {
+    // 沒選語詞，或內容和上次帶過去的一樣：只切換畫面，不重複儲存
+    const key = JSON.stringify([versions.map(x => x.doc), title]);
+    if (!entries.length || key === lastHandoff.current) { onAdvanced?.({same: true}); return; }
+    lastHandoff.current = key;
     const content = captureCopybookContent(entries, getLessonMeta, getBook), saved = [];
     let aId = '', aVersion = 0;
     const aOptions = diffOn ? {...doc.options, title: `${title}（A 版）`, titleCustom: true} : doc.options;
     for (const x of versions) {
       const isA = x.v === 'A', t = isA ? aOptions.title : `${title}（${x.v} 版）`, options = isA ? aOptions : {...x.doc.options, title: t, titleCustom: true};
-      const id = crypto.randomUUID();
-      try { const r = await localApi({action: 'saveWorksheet', id, version: 0, title: t, config: {layout: 'copybook', lesson, selected: x.doc.selected, options, ...content}}); saved.push(x.v); if (isA) { aId = id; aVersion = r.version; } } catch {}
+      // 同一次編輯再切過去時，更新上次存的那一份，不另存新的
+      const rows = (await localApi({action: 'worksheets'})).rows, prev = rows.find(r => r.id === savedIds.current[x.v] && r.version === savedVers.current[x.v]);  // 在進階模式改過就不覆蓋，另存新的
+      const id = prev ? prev.id : crypto.randomUUID(), version = prev ? prev.version : 0;
+      try { const r = await localApi({action: 'saveWorksheet', id, version, title: t, config: {layout: 'copybook', lesson, selected: x.doc.selected, options, ...content}}); savedIds.current[x.v] = id; savedVers.current[x.v] = r.version; saved.push(x.v); if (isA) { aId = id; aVersion = r.version; } } catch {}
     }
     onAdvanced?.({lesson, selected: doc.selected, options: aOptions, entrySnapshots: entries.filter(e => e.lesson === CUSTOM_LESSON_ID), lessonSnapshots: customLessonSnapshot, bookSnapshots: customBookSnapshot, savedId: aId, savedVersion: aVersion, extraSaved: saved});
   };
+  const handoffRef = React.useRef(null);
+  handoffRef.current = toAdvanced;
+  useEffect(() => { onRegister?.(() => handoffRef.current?.()); }, []);
   const moreActive = [diffOn && `${'ABC'.slice(0, diffCount).split('').join('、')} 版`, strokeAppendix && '筆順附頁', customTitle.trim() && '自訂標題', (studentName.trim() || studentClass.trim()) && '班級姓名'].filter(Boolean);
   const changedZhuyin = groups.reduce((n, g) => n + g.targets.filter(i => zhuyinOn(`${g.key}|${i}`) !== showZhuyin).length, 0);
   const quiz = preset === 'quiz';
@@ -503,7 +517,7 @@ export default function SimpleCopybook({onAdvanced}) {
             {!!Object.keys(wordDelta).length && <button type="button" className="mt-2 text-sm font-bold text-blue-800 underline" onClick={() => setWordDelta({})}>全部恢復一樣次數</button>}
           </details>}
           {!!noZhuyin.length && <p role="status" className="text-sm text-amber-900">「{noZhuyin.map(c => c.word).join('、')}」有字沒有注音，印出來那格的注音會空白。可回到第 2 步補上。</p>}
-          {!!missingParts.size && <p role="status" className="text-sm text-amber-900">「{[...missingParts].join('、')}」沒有部件資料，這些字改用描紅。</p>}
+          {!!allMissingParts.length && <p role="status" className="text-sm text-amber-900">「{allMissingParts.join('、')}」沒有部件資料，這些字改用描紅。</p>}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -575,7 +589,7 @@ export default function SimpleCopybook({onAdvanced}) {
       <p role="status" aria-live="polite" className="min-h-6 text-sm text-blue-900">
         {message || shareNote || (!entries.length ? '' : loading ? '正在載入字形…' : `共 ${groups.length} 個語詞・${diffOn ? versions.map((x, k) => `${x.v} 版 ${versionPages[k]} 頁`).join('＋') : `${bookPages} 頁`}${ansPlan ? `（含答案卷 ${ansPlan.pages.length} 頁）` : ''}${strokePages ? `＋筆順附頁 ${strokePages} 頁` : ''}（A4）`)}
       </p>
-      {!!allMissingParts.length && <p role="status" className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">「{allMissingParts.join('、')}」沒有部件資料，部件提示的那幾格改印描紅。</p>}
+      {!!allMissingParts.length && <p role="status" className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">「{allMissingParts.join('、')}」沒辦法分成部件，部件提示的那幾格改印描紅。</p>}
       {!!tooLong.length && <p role="alert" className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">「{tooLong.join('、')}」太長，一欄放不下，請把字格改小，或選「只印生字」。</p>}
       {!!failedChars.length && <p role="alert" className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">網路不穩，有 {failedChars.length} 個字的字形還沒載入。<button type="button" className="font-bold underline" onClick={() => { setFailed({}); setRetry(n => n + 1); }}>重新載入</button></p>}
       {!!entries.length && <div className="flex flex-wrap items-center gap-2">
@@ -607,6 +621,7 @@ export default function SimpleCopybook({onAdvanced}) {
           <div><dt className="font-bold">孩子的語詞不在課本清單裡？</dt><dd>第 1 步按「自己輸入語詞」，把聯絡簿或考卷上的語詞打進去。</dd></div>
           <div><dt className="font-bold">同一張想放好幾課？</dt><dd>勾完一課後換到下一課繼續勾，已勾選的語詞都會保留。</dd></div>
           <div><dt className="font-bold">下次還要重選嗎？</dt><dd>不用，這台電腦的瀏覽器會記住你上次的選擇（學生姓名除外）。</dd></div>
+          <div><dt className="font-bold">簡易模式和進階模式有什麼不同？</dt><dd>簡易模式照 4 個步驟就能印，適合大部分情況。進階模式可以拖曳語詞位置、逐格調整提示，並儲存好幾份學習單。切到進階模式時，簡易模式的語詞和設定會自動帶過去並儲存；在進階模式的修改不會回到簡易模式。</dd></div>
           <div><dt className="font-bold">想讓每個學生拿到不同難度？</dt><dd>第 3 步打開「更多設定」，選「A、B 兩版」或「A、B、C 三版」，每一版各選練習方式，再依學生程度發下不同版本。</dd></div>
           <div><dt className="font-bold">只有手機可以用嗎？</dt><dd>可以。按「下載 PDF」存到手機，再用印表機 App 或傳到電腦列印。</dd></div>
           <div><dt className="font-bold">目前有哪些教材？</dt><dd>南一、康軒、翰林一到六年級上學期。下學期的語詞可以用「自己輸入語詞」。</dd></div>

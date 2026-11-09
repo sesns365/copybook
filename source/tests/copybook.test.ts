@@ -4,6 +4,7 @@ import {SIMPLE_PRESETS, presetSequence, groupWords, buildSimpleDocument, cleanCu
 import {teachingCurriculum} from '../src/app/curriculum-settings';
 import {bookColumns, orderedBookEntries, cellSVG, bookPageSVG} from '../src/app/copybook-export';
 import {CELL_SIZES} from '../src/app/copybook-paper';
+import {copybookComponentMapping} from '../src/app/copybook-grouping';
 
 const all = Object.values(teachingCurriculum({}, {}, false)).flat() as any[];
 const lesson = all[0].lesson;
@@ -65,5 +66,9 @@ describe('學習單文件與排版', () => {
     const strokes = {小: {strokes: ['M0 0L1 1'], medians: [[[0, 0], [1, 1]]]}};
     expect(cellSVG(cell, strokes, plan.renderOptions)).toContain('#c45f5f');
     expect(cellSVG(cell, strokes, build().plan.renderOptions)).toContain('#da8e8e');
+  });
+  it('原本缺部件分組的字已補上（快 → 忄、樂 → 木）', () => {
+    expect(copybookComponentMapping('快', 7, {}, {})).toEqual([0, 0, 0, 1, 1, 1, 1]);
+    expect(copybookComponentMapping('樂', 15, {}, {}).slice(11)).toEqual([0, 0, 0, 0]);
   });
 });

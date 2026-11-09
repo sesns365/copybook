@@ -18,6 +18,7 @@ function App() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [mode, setModeState] = useState<'simple' | 'advanced'>(() => { try { return window.localStorage.getItem('copybook-tool:mode') === 'advanced' ? 'advanced' : 'simple'; } catch { return 'simple'; } });
   const [seed, setSeed] = useState<any>(null);
+  const handoff = useRef<null | (() => void)>(null);
   const setMode = (m: 'simple' | 'advanced') => { setModeState(m); setMessage(''); try { window.localStorage.setItem('copybook-tool:mode', m); } catch {} window.scrollTo({top: 0}); };
 
   const onImport = async (file?: File) => {
@@ -43,7 +44,7 @@ function App() {
             <h1 className="min-w-0 text-2xl font-bold">直式生字學習單製作工具</h1>
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <div role="tablist" aria-label="操作模式" className="flex rounded-xl border-2 bg-slate-100 p-1">
-                {([['simple', '簡易模式'], ['advanced', '進階模式']] as const).map(([m, label]) => <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)} className={'min-h-9 rounded-lg px-3 py-1.5 text-sm font-bold ' + (mode === m ? 'bg-white text-blue-900 shadow' : 'text-slate-600 hover:text-slate-900')}>{label}</button>)}
+                {([['simple', '簡易模式'], ['advanced', '進階模式']] as const).map(([m, label]) => <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => { if (m === 'advanced' && mode === 'simple' && handoff.current) handoff.current(); else setMode(m); }} className={'min-h-9 rounded-lg px-3 py-1.5 text-sm font-bold ' + (mode === m ? 'bg-white text-blue-900 shadow' : 'text-slate-600 hover:text-slate-900')}>{label}</button>)}
               </div>
               {mode === 'advanced' && <><button type="button" className={btn} onClick={() => { const n = readRows().length, f = readFavorites().length; if (!n && !f) { setMessage('目前沒有已儲存的學習單或常用設定可以備份。'); return; } exportBackup(); setMessage(`已下載備份檔：${n} 份學習單${f ? `、${f} 組常用設定` : ''}。`); }}>下載備份檔</button>
               <button type="button" className={btn} onClick={() => fileInput.current?.click()}>匯入備份檔</button>
@@ -53,10 +54,10 @@ function App() {
           <img src={logoUrl} alt="特工365" className="pointer-events-none absolute right-4 top-1/2 h-14 w-14 -translate-y-1/2 opacity-80 max-sm:right-2.5 max-sm:h-11 max-sm:w-11" />
         </header>
         <main className="mx-auto max-w-[1600px] px-4 py-4 max-lg:pb-24">
-          <div hidden={mode !== 'simple'}><SimpleCopybook onAdvanced={(doc: any) => { if (doc.extraSaved?.length) { setReloadKey(k => k + 1); setMessage(doc.extraSaved.length > 1 ? `${doc.extraSaved.join('、')} 版都已自動儲存，目前開啟 A 版；其他版本在「開啟或管理已存學習單」。` : '已自動儲存這份學習單。'); } setSeed({...doc, nonce: Date.now()}); setModeState('advanced'); try { window.localStorage.setItem('copybook-tool:mode', 'advanced'); } catch {} window.scrollTo({top: 0}); }} /></div>
+          <div hidden={mode !== 'simple'}><SimpleCopybook onRegister={(fn: any) => { handoff.current = fn; }} onAdvanced={(doc: any) => { if (doc.same) { setModeState('advanced'); try { window.localStorage.setItem('copybook-tool:mode', 'advanced'); } catch {} window.scrollTo({top: 0}); return; } if (doc.extraSaved?.length) { setReloadKey(k => k + 1); setMessage(doc.extraSaved.length > 1 ? `${doc.extraSaved.join('、')} 版都已自動儲存，目前開啟 A 版；其他版本在「開啟或管理已存學習單」。` : '已自動儲存這份學習單。'); } setSeed({...doc, nonce: Date.now()}); setModeState('advanced'); try { window.localStorage.setItem('copybook-tool:mode', 'advanced'); } catch {} window.scrollTo({top: 0}); }} /></div>
           <div hidden={mode !== 'advanced'}>
             <p className="mb-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-950">
-              進階模式可拖曳排版、逐字逐格調整並儲存多份學習單。儲存的設定只留在這台裝置的這個瀏覽器，換電腦前請按右上「下載備份檔」。
+              進階模式可拖曳排版、逐字逐格調整並儲存多份學習單。在這裡的修改不會回到簡易模式；儲存的設定只留在這台裝置的這個瀏覽器，換電腦前請按右上「下載備份檔」。
               {message && <strong className="ml-2" role="status">{message}</strong>}
             </p>
             <Copybook key={reloadKey} seed={seed} api={localApi} classroomId="local" userId="teacher" onDirty={setDirty} />
