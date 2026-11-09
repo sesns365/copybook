@@ -2,6 +2,8 @@
 const KEY = 'copybook-tool:worksheets:v1';
 // 簡易模式的「我的常用設定」也一起備份
 const FAVS = 'copybook-tool:favorites';
+const HISTORY = 'copybook-tool:history';
+export function readHistory(): any[] { try { const v = JSON.parse(window.localStorage.getItem(HISTORY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } }
 export function readFavorites(): any[] { try { const v = JSON.parse(window.localStorage.getItem(FAVS) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } }
 
 type Row = { id: string; title: string; config: string; version: number; updated: string };
@@ -60,7 +62,7 @@ export async function localApi(payload: any): Promise<any> {
 
 // 備份：把所有已存學習單匯出成一個 JSON 檔；匯入時以「較新版本」合併。
 export function exportBackup() {
-  const blob = new Blob([JSON.stringify({ app: 'copybook-tool', version: 1, exportedAt: new Date().toISOString(), rows: readRows(), favorites: readFavorites() }, null, 1)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ app: 'copybook-tool', version: 1, exportedAt: new Date().toISOString(), rows: readRows(), favorites: readFavorites(), history: readHistory() }, null, 1)], { type: 'application/json' });
   const a = document.createElement('a');
   const d = new Date();
   a.href = URL.createObjectURL(blob);
@@ -74,7 +76,14 @@ export async function importBackup(file: File) {
   const incoming: Row[] = Array.isArray(data?.rows) ? data.rows : [];
   const valid = incoming.filter(r => r && typeof r.id === 'string' && typeof r.title === 'string' && typeof r.config === 'string' && (() => { try { return JSON.parse(r.config)?.layout; } catch { return false; } })());
   const favs = (Array.isArray(data?.favorites) ? data.favorites : []).filter((f: any) => f && typeof f.name === 'string' && f.s && typeof f.s === 'object');
-  if (!valid.length && !favs.length) throw new Error('檔案中沒有可匯入的學習單或常用設定');
+  const hist = (Array.isArray(data?.history) ? data.history : []).filter((r: any) => r && typeof r.id === 'string' && typeof r.title === 'string' && r.state && typeof r.state === 'object');
+  if (!valid.length && !favs.length && !hist.length) throw new Error('檔案中沒有可匯入的學習單、常用設定或紀錄');
+  if (hist.length) {
+    const merged = new Map(readHistory().map((r: any) => [r.id, r]));
+    for (const r of hist) merged.set(r.id, r);
+    try { window.localStorage.setItem(HISTORY, JSON.stringify([...merged.values()].sort((a: any, b: any) => String(b.at).localeCompare(String(a.at))).slice(0, 30))); } catch {}
+    window.dispatchEvent(new Event('copybook-favorites-changed'));
+  }
   if (favs.length) {
     const merged = new Map(readFavorites().map((f: any) => [f.name, f]));
     for (const f of favs) merged.set(f.name.slice(0, 16), { name: f.name.slice(0, 16), s: f.s });

@@ -4,7 +4,7 @@ import './app/globals.css';
 import Copybook from './app/Copybook';
 import SimpleCopybook from './app/SimpleCopybook';
 import { CurriculumTitleProvider } from './app/CurriculumContext';
-import { localApi, exportBackup, importBackup, readRows, readFavorites } from './local-api';
+import { localApi, exportBackup, importBackup, readRows, readFavorites, readHistory } from './local-api';
 
 import logoUrl from './assets/logo-badge.png?inline';
 
@@ -26,7 +26,7 @@ function App() {
     if (dirty && !window.confirm('目前有尚未儲存的修改，匯入後畫面會重新整理。要繼續嗎？')) return;
     try {
       const added = await importBackup(file);
-      setMessage(`已匯入 ${added} 份學習單（常用設定也一併匯入），可在「開啟或管理已存學習單」中選取。`);
+      setMessage(`已匯入 ${added} 份學習單（常用設定和學習單紀錄也一併匯入），可在「開啟或管理已存學習單」中選取。`);
       setReloadKey(k => k + 1);
     } catch (e: any) {
       setMessage('匯入失敗：' + (e?.message || '檔案格式不正確'));
@@ -46,7 +46,7 @@ function App() {
               <div role="tablist" aria-label="操作模式" className="flex rounded-xl border-2 bg-slate-100 p-1">
                 {([['simple', '簡易模式'], ['advanced', '進階模式']] as const).map(([m, label]) => <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => { if (m === 'advanced' && mode === 'simple' && handoff.current) handoff.current(); else setMode(m); }} className={'min-h-9 rounded-lg px-3 py-1.5 text-sm font-bold ' + (mode === m ? 'bg-white text-blue-900 shadow' : 'text-slate-600 hover:text-slate-900')}>{label}</button>)}
               </div>
-              {mode === 'advanced' && <><button type="button" className={btn} onClick={() => { const n = readRows().length, f = readFavorites().length; if (!n && !f) { setMessage('目前沒有已儲存的學習單或常用設定可以備份。'); return; } exportBackup(); setMessage(`已下載備份檔：${n} 份學習單${f ? `、${f} 組常用設定` : ''}。`); }}>下載備份檔</button>
+              {mode === 'advanced' && <><button type="button" className={btn} onClick={() => { const n = readRows().length, f = readFavorites().length, h = readHistory().length; if (!n && !f && !h) { setMessage('目前沒有已儲存的學習單、常用設定或紀錄可以備份。'); return; } exportBackup(); setMessage(`已下載備份檔：${n} 份學習單${f ? `、${f} 組常用設定` : ''}${h ? `、${h} 筆學習單紀錄` : ''}。`); }}>下載備份檔</button>
               <button type="button" className={btn} onClick={() => fileInput.current?.click()}>匯入備份檔</button>
               <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={e => onImport(e.target.files?.[0])} /></>}
             </div>
