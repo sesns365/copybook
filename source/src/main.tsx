@@ -4,6 +4,7 @@ import './app/globals.css';
 import Copybook from './app/Copybook';
 import SimpleCopybook from './app/SimpleCopybook';
 import { CurriculumTitleProvider } from './app/CurriculumContext';
+import { FEEDBACK_URL } from './app/feedback';
 import { localApi, exportBackup, importBackup, readRows } from './local-api';
 
 import logoUrl from './assets/logo-badge.png?inline';
@@ -42,8 +43,9 @@ function App() {
           <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 pr-20">
             <h1 className="min-w-0 text-2xl font-bold">直式生字學習單製作工具</h1>
             <div className="ml-auto flex flex-wrap items-center gap-2">
+              <a href={FEEDBACK_URL} target="_blank" rel="noopener" className={btn + ' inline-flex min-h-10 items-center'}>意見回饋</a>
               <div role="tablist" aria-label="操作模式" className="flex rounded-xl border-2 bg-slate-100 p-1">
-                {([['simple', '簡易模式'], ['advanced', '進階模式']] as const).map(([m, label]) => <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)} className={'rounded-lg px-3 py-1.5 text-sm font-bold ' + (mode === m ? 'bg-white text-blue-900 shadow' : 'text-slate-600 hover:text-slate-900')}>{label}</button>)}
+                {([['simple', '簡易模式'], ['advanced', '進階模式']] as const).map(([m, label]) => <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)} className={'min-h-9 rounded-lg px-3 py-1.5 text-sm font-bold ' + (mode === m ? 'bg-white text-blue-900 shadow' : 'text-slate-600 hover:text-slate-900')}>{label}</button>)}
               </div>
               {mode === 'advanced' && <><button type="button" className={btn} onClick={() => { const n = readRows().length; if (!n) { setMessage('目前沒有已儲存的學習單可以備份。'); return; } exportBackup(); setMessage(`已下載 ${n} 份學習單的備份檔。`); }}>下載備份檔</button>
               <button type="button" className={btn} onClick={() => fileInput.current?.click()}>匯入備份檔</button>
@@ -70,7 +72,7 @@ function App() {
           <a className="underline" href={base + 'licenses/moe-standard-kai.txt'}>教育部標準楷書</a>、
           <a className="underline" href={base + 'licenses/moe-supplement-attribution.txt'}>教育部補充資料</a>。
           </>}
-          <p className="mt-1">各版本語詞依課本整理，僅供教學練習使用；如有疑義，請到 <a className="underline" href="https://github.com/sesns365/copybook/issues">GitHub 回報</a>，將立即調整。</p>
+          <p className="mt-1">各版本語詞依課本整理，僅供教學練習使用；語詞或注音有誤、使用上有問題或建議，請按 <a className="underline" href={FEEDBACK_URL} target="_blank" rel="noopener">意見回饋</a>，將盡快調整。</p>
         </footer>
       </div>
     </CurriculumTitleProvider>

@@ -1,12 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "../../vendor/shadcn-tailwind-4.13.0.css";
+@import "./kai-font.css";
 
-@font-face {
-  font-family: "MOE Standard Kai";
-  src: url("/fonts/moe-standard-kai-5.1.ttf") format("truetype");
-  font-display: swap;
-}
 @utility scrollbar-thin {
   scrollbar-width: thin;
 }

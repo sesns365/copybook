@@ -10,7 +10,7 @@ await build({build: {outDir: out, emptyOutDir: true, copyPublicDir: false, asset
 
 let html = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
 const read = f => fs.readFileSync(path.join(out, f.replace(/^\.\//, '')), 'utf8');
-html = html.replace(/<link rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/g, (_, f) => `<style>${read(f).replace(/@font-face\{font-family:MOE Standard Kai;[^}]*\}/, '')}</style>`);
+html = html.replace(/<link rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/g, (_, f) => `<style>${read(f).replace(/@font-face\{font-family:"?MOE Standard Kai"?;[^}]*\}/g, '')}</style>`);
 let js = '';
 html = html.replace(/<script type="module" crossorigin src="([^"]+)"><\/script>/, (_, f) => { js = read(f); return ''; });
 const favicon = 'data:image/svg+xml;base64,' + fs.readFileSync('public/favicon.svg').toString('base64');

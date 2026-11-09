@@ -50,7 +50,7 @@ export function groupWords(entries) {
   return [...groups.values()].map(g => ({...g, targets: [...new Set(g.entries.map(e => e.targetIdx))].sort((a, b) => a - b)}));
 }
 
-export function buildSimpleDocument({groups, preset, times, customSeq, contentMode, cellSize, showZhuyin, title, titleCustom, missingParts = new Set(), fieldValues = {}, keepZhuyinRail = false, zhuyinOverride = {}}) {
+export function buildSimpleDocument({groups, preset, times, customSeq, wordDelta = {}, crossOpacity = .2, traceTone = 'normal', contentMode, cellSize, showZhuyin, title, titleCustom, missingParts = new Set(), fieldValues = {}, keepZhuyinRail = false, zhuyinOverride = {}}) {
   const seq = presetSequence(preset, times, customSeq);
   const items = {}, selected = [];
   const defaultMode = preset === 'parts' ? 'parts' : preset === 'blank' ? 'blank' : 'trace';
@@ -61,7 +61,11 @@ export function buildSimpleDocument({groups, preset, times, customSeq, contentMo
     const m = mode === 'parts' && missingParts.has(char) ? 'trace' : mode;
     return m === 'parts' ? {mode: m, styles: {...PART_STYLES}} : {mode: m};
   };
+  const minTimes = (SIMPLE_PRESETS.find(p => p.id === preset) || {min: 1}).min;
   for (const g of groups) {
+    // 個別語詞多寫或少寫幾次（老師在「個別語詞調整次數」設定）
+    const delta = wordDelta[g.key] || 0;
+    const gseq = delta ? presetSequence(preset, Math.max(minTimes, Math.min(12, times + delta)), customSeq) : seq;
     const units = contentMode === 'character' ? g.entries.map(e => ({entry: e, targets: [e.targetIdx]})) : [{entry: g.entries[0], targets: g.targets}];
     for (const {entry, targets} of units) {
       selected.push(entry.id);
@@ -69,23 +73,23 @@ export function buildSimpleDocument({groups, preset, times, customSeq, contentMo
       if (quiz) {
         // 看注音寫國字：整個語詞都留白，只保留注音
         const indices = contentMode === 'character' ? targets : [...entry.word].map((_, i) => i);
-        seq.forEach((_, r) => indices.forEach(i => { cells[`${r}:${i}`] = {mode: 'blank', showZhuyin: true}; }));
-        items[entry.id] = {word: entry.word, cells};
+        gseq.forEach((_, r) => indices.forEach(i => { cells[`${r}:${i}`] = {mode: 'blank', showZhuyin: true}; }));
+        items[entry.id] = {word: entry.word, cells, ...(delta ? {repetitions: gseq.length} : {})};
         continue;
       }
       for (const t of targets) {
         const isPrimary = t === entry.targetIdx;
         const char = entry.word[t];
-        if (isPrimary && !needsCells && !(preset === 'parts' && missingParts.has(char))) continue;
-        seq.forEach((mode, r) => { cells[`${r}:${t}`] = cellFor(mode, char); });
+        if (isPrimary && !needsCells && !delta && !(preset === 'parts' && missingParts.has(char))) continue;
+        gseq.forEach((mode, r) => { cells[`${r}:${t}`] = cellFor(mode, char); });
       }
       // 個別生字的注音（true 印注音／false 注音格空白）；不要注音格時不套用
       if (keepZhuyinRail || showZhuyin) for (const t of targets) {
         const want = zhuyinOverride[`${g.key}|${t}`];
         if (typeof want !== 'boolean' || want === showZhuyin) continue;
-        seq.forEach((_, r) => { const k = `${r}:${t}`; cells[k] = {...(cells[k] || {}), showZhuyin: want}; });
+        gseq.forEach((_, r) => { const k = `${r}:${t}`; cells[k] = {...(cells[k] || {}), showZhuyin: want}; });
       }
-      if (Object.keys(cells).length) items[entry.id] = {word: entry.word, cells};
+      if (Object.keys(cells).length || delta) items[entry.id] = {word: entry.word, cells, ...(delta ? {repetitions: gseq.length} : {})};
     }
   }
   const options = {
@@ -96,7 +100,7 @@ export function buildSimpleDocument({groups, preset, times, customSeq, contentMo
     showModel: !quiz,
     blankLast: preset !== 'blank' && preset !== 'quiz' && seq.length > 1 && seq[seq.length - 1] === 'blank',
     defaultMode: quiz ? 'blank' : defaultMode,
-    paperSize: 'A4',
+    paperSize: 'A4', crossOpacity, traceTone,
     // 一欄放得下就接著放下一個語詞（中間空一格），短語詞或只寫一次時比較省紙
     wordsPerColumn: 0, wordGap: 1,
     fieldValues,
@@ -179,4 +183,18 @@ export function decodeShare(text) {
     const bin = atob(text.replace(/-/g, '+').replace(/_/g, '/'));
     return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))));
   } catch { return null; }
+}
+
+// 學生名單：每行一位，名字後面可加 A、B、C 指定版本（例如「王小明 B」），沒寫就是 A 版。
+export function parseRoster(text, versions = 1) {
+  const out = [];
+  for (const raw of String(text).split(/[\n,，、;；]+/)) {
+    const line = raw.trim(); if (!line) continue;
+    const m = line.match(/^(.*?)[\s（(]*([ABCabc])[)）]?$/);
+    let name = line, v = 'A', fallback = false;
+    if (m && m[1].trim()) { name = m[1].trim(); v = m[2].toUpperCase(); }
+    if ('ABC'.indexOf(v) >= versions) { fallback = true; v = 'A'; }
+    out.push({name: name.slice(0, 20), v, fallback});
+  }
+  return out.slice(0, 60);
 }

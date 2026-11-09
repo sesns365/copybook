@@ -26,3 +26,7 @@
 
 ## 授權
 筆畫與字形資料授權見 `public/licenses/`。
+
+## 字型
+
+網頁上的楷書字型由 `font-src/moe-standard-kai-5.1.ttf` 切成 `public/fonts/kai/` 的多個 woff2 小檔（依字最早出現的年級分組），瀏覽器只下載畫面上用到的字。更新語詞資料後可執行 `python3 scripts/split-kai-font.py` 重新切分（需要 `pip install fonttools brotli`）。
