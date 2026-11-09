@@ -11,7 +11,7 @@ export const SIMPLE_PRESETS = [
   {id: 'progressive', name: '漸進練習', note: '描紅 → 描灰 → 自己寫', stages: ['trace', 'gray'], last: 'blank', min: 3, defaultTimes: 5},
   {id: 'traceParts', name: '描紅＋部件提示', note: '描紅 → 部件提示 → 自己寫', stages: ['trace', 'parts'], last: 'blank', min: 4, defaultTimes: 5},
   {id: 'fullSteps', name: '四階段練習', note: '描紅 → 描灰 → 部件提示 → 自己寫', stages: ['trace', 'gray', 'parts'], last: 'blank', min: 5, defaultTimes: 6},
-  {id: 'parts', name: '部件提示', note: '一部分印黑色，其餘描灰', stages: ['parts'], min: 2, defaultTimes: 3},
+  {id: 'parts', name: '部件提示', note: '印出字的一部分，其餘自己寫', stages: ['parts'], min: 2, defaultTimes: 3},
   {id: 'blank', name: '看示範自己寫', note: '只有示範字，其餘留白', stages: ['blank'], min: 2, defaultTimes: 3},
   {id: 'quiz', name: '看注音寫國字', note: '不印國字，只有注音（小考、複習用）', min: 1, defaultTimes: 1},
   {id: 'custom', name: '自訂組合', note: '每一次要描紅、描灰、部件或自己寫，自己排', min: 2, defaultTimes: 5},
@@ -37,7 +37,8 @@ export function presetSequence(preset, times, customSeq = DEFAULT_CUSTOM) {
   return seq;
 }
 
-const PART_STYLES = {0: 'black', 1: 'gray'};
+// 部件提示：有提示的部件印出來（黑色、描紅或描灰），其餘部分空白；更細的設定到進階模式
+export const PARTS_TONES = ['black', 'red', 'gray'];
 
 // 同一課、同一語詞有多個生字（例如「擦痕」的擦與痕）時合併成一組，兩個字都當生字練習。
 export function groupWords(entries) {
@@ -50,16 +51,16 @@ export function groupWords(entries) {
   return [...groups.values()].map(g => ({...g, targets: [...new Set(g.entries.map(e => e.targetIdx))].sort((a, b) => a - b)}));
 }
 
-export function buildSimpleDocument({groups, preset, times, customSeq, wordDelta = {}, crossOpacity = .2, traceTone = 'normal', contentMode, cellSize, showZhuyin, title, titleCustom, missingParts = new Set(), fieldValues = {}, keepZhuyinRail = false, zhuyinOverride = {}}) {
+export function buildSimpleDocument({groups, preset, times, customSeq, partsTone = 'black', wordDelta = {}, crossOpacity = .2, traceTone = 'normal', contentMode, cellSize, showZhuyin, title, titleCustom, missingParts = new Set(), fieldValues = {}, keepZhuyinRail = false, zhuyinOverride = {}}) {
   const seq = presetSequence(preset, times, customSeq);
   const items = {}, selected = [];
   const defaultMode = preset === 'parts' ? 'parts' : preset === 'blank' ? 'blank' : 'trace';
   // 只有 trace／traceBlank／parts／blank 可以靠整張預設表達；其餘逐格寫明，進階模式仍可再改。
-  const needsCells = !['trace', 'traceBlank', 'parts', 'blank'].includes(preset);
+  const needsCells = !['trace', 'traceBlank', 'blank'].includes(preset);
   const quiz = preset === 'quiz';
   const cellFor = (mode, char) => {
     const m = mode === 'parts' && missingParts.has(char) ? 'trace' : mode;
-    return m === 'parts' ? {mode: m, styles: {...PART_STYLES}} : {mode: m};
+    return m === 'parts' ? {mode: m, styles: {0: PARTS_TONES.includes(partsTone) ? partsTone : 'black', 1: 'blank'}} : {mode: m};
   };
   const minTimes = (SIMPLE_PRESETS.find(p => p.id === preset) || {min: 1}).min;
   for (const g of groups) {
@@ -80,7 +81,7 @@ export function buildSimpleDocument({groups, preset, times, customSeq, wordDelta
       for (const t of targets) {
         const isPrimary = t === entry.targetIdx;
         const char = entry.word[t];
-        if (isPrimary && !needsCells && !delta && !(preset === 'parts' && missingParts.has(char))) continue;
+        if (isPrimary && !needsCells && !delta) continue;
         gseq.forEach((mode, r) => { cells[`${r}:${t}`] = cellFor(mode, char); });
       }
       // 個別生字的注音（true 印注音／false 注音格空白）；不要注音格時不套用

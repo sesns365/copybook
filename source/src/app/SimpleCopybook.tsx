@@ -24,7 +24,7 @@ const readShared = () => {
   if (!m) return null;
   const s = decodeShare(m[1]);
   try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch {}
-  return s && s.v === 1 ? {lesson: s.l, picked: s.p, custom: s.c, preset: s.s, times: s.t, diffCount: s.d === true ? 2 : s.d, presetB: s.sb, timesB: s.tb, presetC: s.sc, timesC: s.tc, customSeqC: s.csc, wordDelta: s.wd, crossOpacity: s.co, traceTone: s.tt, contentMode: s.m, cellSize: s.z, customSeq: s.cs, customSeqB: s.csb, zhuyinMode: s.zm || (s.y === false ? 'none' : 'show'), zhuyinOverride: s.zo, customTitle: s.h, shared: true} : null;
+  return s && s.v === 1 ? {lesson: s.l, picked: s.p, custom: s.c, preset: s.s, times: s.t, diffCount: s.d === true ? 2 : s.d, presetB: s.sb, timesB: s.tb, presetC: s.sc, timesC: s.tc, customSeqC: s.csc, wordDelta: s.wd, crossOpacity: s.co, traceTone: s.tt, partsTone: s.pt, contentMode: s.m, cellSize: s.z, customSeq: s.cs, customSeqB: s.csb, zhuyinMode: s.zm || (s.y === false ? 'none' : 'show'), zhuyinOverride: s.zo, customTitle: s.h, shared: true} : null;
 };
 const GUIDE = 'copybook-tool:guide-closed';
 const FAVS = 'copybook-tool:favorites';
@@ -51,7 +51,7 @@ const SWATCH = {
   trace: <span style={{color: '#da8e8e'}}>字</span>,
   gray: <span style={{color: '#b5b5b5'}}>字</span>,
   blank: <span className="opacity-0">字</span>,
-  parts: <span className="relative inline-block"><span style={{color: '#c2c2c2'}}>字</span><span className="absolute inset-0 text-slate-900" style={{clipPath: 'inset(0 0 55% 0)'}}>字</span></span>,
+  parts: <span className="relative inline-block"><span className="opacity-0">字</span><span className="absolute inset-0 text-slate-900" style={{clipPath: 'inset(0 0 55% 0)'}}>字</span></span>,
 };
 
 function Sequence({seq, small = false}) {
@@ -62,7 +62,7 @@ function Sequence({seq, small = false}) {
 
 // 名詞說明：每一種格子的樣子
 function ModeLegend() {
-  const rows = [['model', '示範字', '黑色完整的字，先看清楚再寫'], ['trace', '描紅', '淡紅色的字，沿著筆畫描寫'], ['gray', '描灰', '更淡的灰色字，提示少一點'], ['parts', '部件提示', '字的一部分印黑色，其餘描灰；要改成描紅或空白，請到進階模式逐格設定'], ['blank', '自己寫', '空格，不看提示自己寫']];
+  const rows = [['model', '示範字', '黑色完整的字，先看清楚再寫'], ['trace', '描紅', '淡紅色的字，沿著筆畫描寫'], ['gray', '描灰', '更淡的灰色字，提示少一點'], ['parts', '部件提示', '只印字的一部分當提示，其餘空白自己寫；提示可選黑色、描紅或描灰，更多細節到進階模式'], ['blank', '自己寫', '空格，不看提示自己寫']];
   return <dl className="grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">{rows.map(([m, t, d]) => <div key={m} className="flex items-center gap-2"><Sequence small seq={[m]}/><dt className="font-bold whitespace-nowrap">{t}</dt><dd className="text-slate-600">{d}</dd></div>)}</dl>;
 }
 
@@ -145,6 +145,7 @@ export default function SimpleCopybook({onAdvanced}) {
   // 個別語詞多寫或少寫幾次：{語詞 key: -2…+3}
   const [wordDelta, setWordDelta] = useState(() => Object.fromEntries(Object.entries(saved.wordDelta && typeof saved.wordDelta === 'object' ? saved.wordDelta : {}).filter(([, v]) => Number.isInteger(v) && v >= -2 && v <= 3 && v)));
   const [answerKey, setAnswerKey] = useState(saved.answerKey === true);
+  const [partsTone, setPartsTone] = useState(['black', 'red', 'gray'].includes(saved.partsTone) ? saved.partsTone : 'black');
   // 我的常用設定：只存練習方式與版面，不含語詞和姓名
   const [favs, setFavs] = useState(() => { try { const v = JSON.parse(window.localStorage.getItem(FAVS) || '[]'); return Array.isArray(v) ? v.slice(0, 12) : []; } catch { return []; } });
   const [favName, setFavName] = useState(''), [favAdding, setFavAdding] = useState(false);
@@ -166,7 +167,7 @@ export default function SimpleCopybook({onAdvanced}) {
   const [message, setMessage] = useState('');
   const [customMsg, setCustomMsg] = useState('');
 
-  useEffect(() => { try { window.localStorage.setItem(STORE, JSON.stringify({lesson, picked, custom, preset, times, customSeq, customSeqB, customSeqC, presetC, timesC, diffCount, wordDelta, crossOpacity, traceTone, answerKey, contentMode, cellSize, zhuyinMode, zhuyinOverride, customTitle, zoom, strokeAppendix, presetB, timesB})); } catch {} }, [customSeq, customSeqB, customSeqC, presetC, timesC, diffCount, wordDelta, crossOpacity, traceTone, answerKey, zhuyinMode, zhuyinOverride, lesson, picked, custom, preset, times, contentMode, cellSize, showZhuyin, customTitle, zoom, strokeAppendix, diffOn, presetB, timesB]);
+  useEffect(() => { try { window.localStorage.setItem(STORE, JSON.stringify({lesson, picked, custom, preset, times, customSeq, customSeqB, customSeqC, presetC, timesC, diffCount, wordDelta, crossOpacity, traceTone, answerKey, partsTone, contentMode, cellSize, zhuyinMode, zhuyinOverride, customTitle, zoom, strokeAppendix, presetB, timesB})); } catch {} }, [customSeq, customSeqB, customSeqC, presetC, timesC, diffCount, wordDelta, crossOpacity, traceTone, answerKey, partsTone, zhuyinMode, zhuyinOverride, lesson, picked, custom, preset, times, contentMode, cellSize, showZhuyin, customTitle, zoom, strokeAppendix, diffOn, presetB, timesB]);
 
   const addCustom = () => {
     const words = parseCustomWords(customText), ok = words.filter(validCustomWord), bad = words.filter(w => !validCustomWord(w));
@@ -186,7 +187,7 @@ export default function SimpleCopybook({onAdvanced}) {
   const fixCustomZhuyin = id => setCustom(v => v.map(c => c.id === id ? {...c, pinyin: normalizeZhuyin(c.pinyin, c.word.length)} : c));
   const removeCustom = id => { setCustom(v => v.filter(c => c.id !== id)); setPicked(v => v.filter(x => !x.startsWith(id + ':'))); };
   const copyShare = async () => {
-    const code = encodeShare({v: 1, l: lesson, p: picked.filter(id => !id.startsWith('custom:') || custom.some(c => id.startsWith(c.id + ':'))), c: custom, s: preset, t: times, cs: preset === 'custom' ? customSeq : undefined, csb: presetB === 'custom' ? customSeqB : undefined, csc: presetC === 'custom' ? customSeqC : undefined, sc: presetC, tc: timesC, wd: Object.keys(wordDelta).length ? wordDelta : undefined, co: crossOpacity, tt: traceTone, d: diffCount, sb: presetB, tb: timesB, m: contentMode, z: cellSize, zm: zhuyinMode, zo: zhuyinOverride, h: customTitle});
+    const code = encodeShare({v: 1, l: lesson, p: picked.filter(id => !id.startsWith('custom:') || custom.some(c => id.startsWith(c.id + ':'))), c: custom, s: preset, t: times, cs: preset === 'custom' ? customSeq : undefined, csb: presetB === 'custom' ? customSeqB : undefined, csc: presetC === 'custom' ? customSeqC : undefined, sc: presetC, tc: timesC, wd: Object.keys(wordDelta).length ? wordDelta : undefined, co: crossOpacity, tt: traceTone, pt: partsTone, d: diffCount, sb: presetB, tb: timesB, m: contentMode, z: cellSize, zm: zhuyinMode, zo: zhuyinOverride, h: customTitle});
     const url = window.location.href.split('#')[0] + '#ws=' + code;
     try { await navigator.clipboard.writeText(url); setMessage('已複製分享連結，貼給同事或家長，打開就是同一份學習單。'); }
     catch { window.prompt('請複製這個連結：', url); }
@@ -263,9 +264,9 @@ export default function SimpleCopybook({onAdvanced}) {
   const versions = useMemo(() => verDefs.map(d => {
     const usesParts = groups.some(g => presetSequence(d.preset, d.times + (wordDelta[g.key] || 0), d.customSeq).includes('parts')) || presetSequence(d.preset, d.times, d.customSeq).includes('parts');
     const missingParts = new Set(usesParts ? [...needed].filter(c => data[c] === null) : []);
-    const doc = buildSimpleDocument({groups, preset: d.preset, times: d.times, customSeq: d.customSeq, wordDelta, crossOpacity, traceTone, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, titleCustom: !!customTitle.trim(), missingParts, fieldValues: {班級: studentClass.trim(), 姓名: studentName.trim()}});
+    const doc = buildSimpleDocument({groups, preset: d.preset, times: d.times, customSeq: d.customSeq, partsTone, wordDelta, crossOpacity, traceTone, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, titleCustom: !!customTitle.trim(), missingParts, fieldValues: {班級: studentClass.trim(), 姓名: studentName.trim()}});
     return {...d, doc, missingParts};
-  }), [JSON.stringify(verDefs), groups, wordDelta, crossOpacity, traceTone, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, customTitle, needed, data, studentClass, studentName]);
+  }), [JSON.stringify(verDefs), groups, partsTone, wordDelta, crossOpacity, traceTone, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, customTitle, needed, data, studentClass, studentName]);
   const doc = versions[0].doc, missingParts = versions[0].missingParts;
   const entries = useMemo(() => orderedBookEntries(all, doc.selected), [all, doc.selected]);
   const plans = useMemo(() => versions.map(x => bookColumns(entries, x.doc.options)), [versions, entries]);
@@ -274,6 +275,7 @@ export default function SimpleCopybook({onAdvanced}) {
   const strokeLayout = useMemo(() => strokeAppendix ? strokeOrderLayout(targetChars, data) : {pages: [], perLine: 0}, [strokeAppendix, targetChars, data]);
   const noStrokeChars = strokeAppendix ? targetChars.filter(c => data[c] === null) : [];
   // 看注音寫國字的答案卷：每個語詞印一次完整國字＋注音，給老師對答案
+  const usesParts = versions.some(x => presetSequence(x.preset, x.times, x.customSeq).includes('parts'));
   const hasQuiz = versions.some(x => x.preset === 'quiz'), withAnswers = hasQuiz && answerKey;
   const ansDoc = useMemo(() => withAnswers ? buildSimpleDocument({groups, preset: 'blank', times: 1, contentMode, cellSize, showZhuyin: true, keepZhuyinRail: false, crossOpacity, traceTone, title: title + '（答案）', titleCustom: true, fieldValues: {}}) : null, [withAnswers, groups, contentMode, cellSize, crossOpacity, traceTone, title]);
   const ansPlan = useMemo(() => ansDoc ? bookColumns(entries, ansDoc.options) : null, [ansDoc, entries]);
@@ -321,14 +323,14 @@ export default function SimpleCopybook({onAdvanced}) {
   }, `已下載「${title}${diffOn ? `」${versions.map(x => x.v).join('、')} ${versions.length} 個檔案` : '.docx」'}，通常會在電腦的「下載」資料夾。${strokePages && diffOn ? `筆順附頁在 ${versions[versions.length - 1].v} 版的 Word 檔最後面。` : ''}`);
 
   const seq = presetSequence(preset, shownTimes, customSeq);
-  const favSnapshot = () => ({preset, times, customSeq, contentMode, cellSize, zhuyinMode, crossOpacity, traceTone, diffCount, presetB, timesB, customSeqB, presetC, timesC, customSeqC, strokeAppendix, answerKey});
+  const favSnapshot = () => ({partsTone, preset, times, customSeq, contentMode, cellSize, zhuyinMode, crossOpacity, traceTone, diffCount, presetB, timesB, customSeqB, presetC, timesC, customSeqC, strokeAppendix, answerKey});
   const applyFav = f => { const x = f.s || {}; const ok = id => SIMPLE_PRESETS.some(p => p.id === id);
     if (ok(x.preset)) setPreset(x.preset); if (Number.isInteger(x.times)) setTimes(x.times); setCustomSeq(cleanCustomSeq(x.customSeq));
     if (['word', 'character'].includes(x.contentMode)) setContentMode(x.contentMode); if (CELL_SIZES.includes(x.cellSize)) setCellSize(x.cellSize);
     if (['show', 'blank', 'none'].includes(x.zhuyinMode)) setZhuyinMode(x.zhuyinMode); if ([0, .2, .45, .75].includes(x.crossOpacity)) setCrossOpacity(x.crossOpacity); setTraceTone(x.traceTone === 'dark' ? 'dark' : 'normal');
     setDiffCount([1, 2, 3].includes(x.diffCount) ? x.diffCount : 1); if (ok(x.presetB)) setPresetB(x.presetB); if (Number.isInteger(x.timesB)) setTimesB(x.timesB); setCustomSeqB(cleanCustomSeq(x.customSeqB));
     if (ok(x.presetC)) setPresetC(x.presetC); if (Number.isInteger(x.timesC)) setTimesC(x.timesC); setCustomSeqC(cleanCustomSeq(x.customSeqC));
-    setStrokeAppendix(x.strokeAppendix === true); setAnswerKey(x.answerKey === true); setMessage(`已套用常用設定「${f.name}」。`); };
+    setStrokeAppendix(x.strokeAppendix === true); setAnswerKey(x.answerKey === true); setPartsTone(['black', 'red', 'gray'].includes(x.partsTone) ? x.partsTone : 'black'); setMessage(`已套用常用設定「${f.name}」。`); };
   const saveFav = () => { const name = favName.trim().slice(0, 16) || `設定 ${favs.length + 1}`; setFavs(v => [...v.filter(f => f.name !== name), {name, s: favSnapshot()}].slice(-12)); setFavName(''); setFavAdding(false); setMessage(`已存成常用設定「${name}」，下次在第 3 步上方點一下就能套用。`); };
   // 帶到進階模式：A 版直接開啟；B、C 版另存成已存學習單，在進階模式的「開啟或管理已存學習單」可找到
   const toAdvanced = async () => {
@@ -495,6 +497,9 @@ export default function SimpleCopybook({onAdvanced}) {
           <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700"><span>生字會依序這樣印：</span><Sequence seq={seq}/>
             <details className="w-full"><summary className="cursor-pointer text-sm font-bold text-blue-800">這些格子是什麼意思？</summary><div className="mt-2"><ModeLegend/></div></details></div>
           <p className="text-[15px] text-slate-600">{seq.map((m, i) => `第 ${i + 1} 次${MODE_LABEL[m]}`).join('、')}</p>
+          {usesParts && <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2"><span className="font-bold">部件提示的顏色</span>
+            {[['black', '黑色'], ['red', '描紅'], ['gray', '描灰']].map(([v, l]) => <button key={v} type="button" aria-pressed={partsTone === v} className={chip(partsTone === v) + ' py-1'} onClick={() => setPartsTone(v)}>{l}</button>)}
+            <span className="w-full text-sm text-slate-600">有提示的部件用這個顏色印出來，其餘部分空白讓學生自己寫。要逐字調整哪一部分當提示，請到進階模式。</span></div>}
           {hasQuiz && <label className="flex min-h-10 items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 font-bold"><input type="checkbox" className="h-5 w-5" checked={answerKey} onChange={e => setAnswerKey(e.target.checked)}/>加印答案卷（印出國字和注音，給老師對答案）</label>}
           {!!groups.length && <details className="rounded-lg border bg-white p-3" open={!!Object.keys(wordDelta).length}>
             <summary className="cursor-pointer font-bold">個別語詞多寫或少寫{Object.keys(wordDelta).length ? `（已調整 ${Object.keys(wordDelta).length} 個）` : ''}</summary>

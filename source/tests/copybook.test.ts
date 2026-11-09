@@ -49,6 +49,14 @@ describe('學習單文件與排版', () => {
     const item = doc.options.items[groups[0].entries[0].id];
     expect(item.repetitions).toBe(6);
   });
+  it('部件提示：提示部件可選顏色，其餘空白', () => {
+    for (const tone of ['black', 'red', 'gray']) {
+      const {doc} = build({preset: 'parts', times: 3, partsTone: tone});
+      const cells = Object.values(doc.options.items).flatMap((it: any) => Object.values(it.cells)).filter((c: any) => c.mode === 'parts');
+      expect(cells.length).toBeGreaterThan(0);
+      for (const c of cells as any[]) expect(c.styles).toEqual({0: tone, 1: 'blank'});
+    }
+  });
   it('描紅加深與十字線深淺會套用到字格', () => {
     const {plan} = build({traceTone: 'dark', crossOpacity: .75});
     const cell = {kind: 'char', char: '小', mode: 'trace', pinyin: 'ㄒㄧㄠˇ'};
