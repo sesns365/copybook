@@ -9,9 +9,11 @@ import {loadStrokeData, MISSING_STROKES} from './stroke-data';
 import {bookColumns, orderedBookEntries, bookPageSVG, bookDOCX, downloadBlob} from './copybook-export';
 import {automaticCopybookTitle} from './copybook-title';
 import {CELL_SIZES} from './copybook-paper';
-import {SIMPLE_PRESETS, MODE_LABEL, CUSTOM_MODES, cleanCustomSeq, parseRoster, presetSequence, groupWords, buildSimpleDocument, buildZhuyinIndex, guessZhuyin, parseCustomWords, validCustomWord, normalizeZhuyin, missingZhuyin, polyphones, customEntries, customTargets, customLessonSnapshot, customBookSnapshot, CUSTOM_LESSON_ID, encodeShare, decodeShare} from './simple-copybook';
+import {SIMPLE_PRESETS, MODE_LABEL, CUSTOM_MODES, cleanCustomSeq, presetSequence, groupWords, buildSimpleDocument, buildZhuyinIndex, guessZhuyin, parseCustomWords, validCustomWord, normalizeZhuyin, missingZhuyin, polyphones, customEntries, customTargets, customLessonSnapshot, customBookSnapshot, CUSTOM_LESSON_ID, encodeShare, decodeShare} from './simple-copybook';
 import {downloadPDF, printPages} from './copybook-output';
 import {strokeOrderLayout, strokeOrderPageSVG} from './stroke-order-pages';
+import {captureCopybookContent} from './copybook-preservation';
+import {localApi} from '../local-api';
 
 const STORE = 'copybook-tool:simple:v1';
 const firstLesson = baseGetBook(DEFAULT_BOOK).lessons[0];
@@ -122,6 +124,7 @@ export default function SimpleCopybook({onAdvanced}) {
   const [customSeq, setCustomSeq] = useState(() => cleanCustomSeq(saved.customSeq));
   const [customSeqB, setCustomSeqB] = useState(() => cleanCustomSeq(saved.customSeqB));
   const [presetOpen, setPresetOpen] = useState(false);
+  const [pickDone, setPickDone] = useState(false);
   const [contentMode, setContentMode] = useState(saved.contentMode === 'character' ? 'character' : 'word');
   const [cellSize, setCellSize] = useState(CELL_SIZES.includes(saved.cellSize) ? saved.cellSize : 20);
   // 注音：show 加注音／blank 留空注音格／none 不要注音格；zhuyinOverride 是個別生字指定（true 印、false 空白）
@@ -141,13 +144,12 @@ export default function SimpleCopybook({onAdvanced}) {
   const [customSeqC, setCustomSeqC] = useState(() => cleanCustomSeq(saved.customSeqC));
   // 個別語詞多寫或少寫幾次：{語詞 key: -2…+3}
   const [wordDelta, setWordDelta] = useState(() => Object.fromEntries(Object.entries(saved.wordDelta && typeof saved.wordDelta === 'object' ? saved.wordDelta : {}).filter(([, v]) => Number.isInteger(v) && v >= -2 && v <= 3 && v)));
-  // 學生名單（每人一份）；為了隱私不記住、不放進分享連結
-  const [rosterText, setRosterText] = useState('');
   const [answerKey, setAnswerKey] = useState(saved.answerKey === true);
   // 我的常用設定：只存練習方式與版面，不含語詞和姓名
   const [favs, setFavs] = useState(() => { try { const v = JSON.parse(window.localStorage.getItem(FAVS) || '[]'); return Array.isArray(v) ? v.slice(0, 12) : []; } catch { return []; } });
   const [favName, setFavName] = useState(''), [favAdding, setFavAdding] = useState(false);
   useEffect(() => { try { window.localStorage.setItem(FAVS, JSON.stringify(favs)); } catch {} }, [favs]);
+  useEffect(() => { const reload = () => { try { const v = JSON.parse(window.localStorage.getItem(FAVS) || '[]'); if (Array.isArray(v)) setFavs(v.slice(0, 12)); } catch {} }; window.addEventListener('copybook-favorites-changed', reload); return () => window.removeEventListener('copybook-favorites-changed', reload); }, []);
   // 低視能或手部動作需要：十字線深淺、描紅描灰顏色加深
   const [crossOpacity, setCrossOpacity] = useState([0, .2, .45, .75].includes(saved.crossOpacity) ? saved.crossOpacity : .2);
   const [traceTone, setTraceTone] = useState(saved.traceTone === 'dark' ? 'dark' : 'normal');
@@ -236,6 +238,19 @@ export default function SimpleCopybook({onAdvanced}) {
     })();
     return () => { cancelled = true; };
   }, [needed, retry]);
+  // 預先載入目前這一課的字形：老師勾語詞時就已經準備好，不用再等
+  const lessonChars = useMemo(() => [...new Set(lessonGroups.flatMap(g => [...g.word]))].join(''), [lessonGroups]);
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const todo = [...lessonChars].filter(c => !(c in data) && !(c in failed) && !needed.includes(c));
+      for (let i = 0; i < todo.length && !cancelled; i += 12) {
+        const batch = await Promise.all(todo.slice(i, i + 12).map(async c => { try { return [c, await loadStrokeData(c)]; } catch (e) { return e?.message === MISSING_STROKES ? [c, null] : null; } }));
+        if (!cancelled) setData(v => ({...v, ...Object.fromEntries(batch.filter(Boolean).filter(([c]) => !(c in v)))}));
+      }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [lessonChars]);
   const loading = [...needed].some(c => !(c in data) && !(c in failed));
   const failedChars = [...needed].filter(c => c in failed);
 
@@ -262,9 +277,8 @@ export default function SimpleCopybook({onAdvanced}) {
   const hasQuiz = versions.some(x => x.preset === 'quiz'), withAnswers = hasQuiz && answerKey;
   const ansDoc = useMemo(() => withAnswers ? buildSimpleDocument({groups, preset: 'blank', times: 1, contentMode, cellSize, showZhuyin: true, keepZhuyinRail: false, crossOpacity, traceTone, title: title + '（答案）', titleCustom: true, fieldValues: {}}) : null, [withAnswers, groups, contentMode, cellSize, crossOpacity, traceTone, title]);
   const ansPlan = useMemo(() => ansDoc ? bookColumns(entries, ansDoc.options) : null, [ansDoc, entries]);
-  const roster = useMemo(() => parseRoster(rosterText, diffCount), [rosterText, diffCount]);
-  // 輸出單位：有名單時每位學生一份（用他的版本），沒有名單時每一版一份
-  const units = roster.length ? roster.map(r => ({v: r.v, name: r.name})) : versions.map(x => ({v: x.v, name: studentName.trim()}));
+  // 輸出單位：每一版一份
+  const units = versions.map(x => ({v: x.v, name: studentName.trim()}));
   const vIndex = v => Math.max(0, versions.findIndex(x => x.v === v));
   const pageRefs = useMemo(() => [...units.flatMap(u => plans[vIndex(u.v)].pages.map((_, i) => ({u, i}))), ...(ansPlan ? ansPlan.pages.map((_, i) => ({u: {v: 'ANS', name: ''}, i})) : [])], [JSON.stringify(units), plans, ansPlan]);
   const bookPages = pageRefs.length, strokePages = strokeLayout.pages.length;
@@ -277,12 +291,13 @@ export default function SimpleCopybook({onAdvanced}) {
     if (k < bookPages) { const {u, i} = pageRefs[k], x = vIndex(u.v), opts = {...versions[x].doc.options, fieldValues: {班級: studentClass.trim(), 姓名: u.name}}; return markVersion(bookPageSVG(plans[x], i, data, opts), u.v); }
     return strokeOrderPageSVG(strokeLayout, k - bookPages, data, (title.replace(/\s*生字學習單$/, '') + ' 筆順練習').trim());
   };
+  const strokeSVGs = () => strokeLayout.pages.map((_, i) => strokeOrderPageSVG(strokeLayout, i, data, (title.replace(/\s*生字學習單$/, '') + ' 筆順練習').trim()));
   const allSVGs = () => Array.from({length: pages}, (_, i) => rawPageSVG(i));
-  const pageLabel = k => k < bookPages && pageRefs[k].u.v === 'ANS' ? '答案卷・' : k >= bookPages ? (strokePages && (diffOn || roster.length) ? '筆順附頁・' : '') : (roster.length ? pageRefs[k].u.name + '・' : '') + (diffOn ? pageRefs[k].u.v + ' 版・' : '');
+  const pageLabel = k => k < bookPages && pageRefs[k].u.v === 'ANS' ? '答案卷・' : k >= bookPages ? (strokePages && diffOn ? '筆順附頁・' : '') : (diffOn ? pageRefs[k].u.v + ' 版・' : '');
   const shown = Math.min(page, Math.max(0, pages - 1));
   useEffect(() => { if (page > pages - 1) setPage(Math.max(0, pages - 1)); }, [pages]);
   const firstDoc = React.useRef(true);
-  useEffect(() => { if (firstDoc.current) { firstDoc.current = false; return; } if (!busy) { setMessage(''); setShareNote(''); } }, [versions, strokeAppendix, rosterText]);
+  useEffect(() => { if (firstDoc.current) { firstDoc.current = false; return; } if (!busy) { setMessage(''); setShareNote(''); } }, [versions, strokeAppendix]);
   const allMissingParts = [...new Set(versions.flatMap(x => [...x.missingParts]))].filter(c => targetChars.includes(c));
   const tooLong = [...new Set(plans.flatMap(x => x.tooLong))];
   const ready = !!entries.length && !loading && !failedChars.length && !tooLong.length;
@@ -299,11 +314,11 @@ export default function SimpleCopybook({onAdvanced}) {
   const doWord = () => run('正在製作 Word', async () => {
     for (let k = 0; k < versions.length; k++) {
       if (k) await new Promise(r => setTimeout(r, 600));
-      const opts = roster.length ? {...versions[k].doc.options, fieldValues: {班級: studentClass.trim(), 姓名: ''}} : versions[k].doc.options;
-      downloadBlob(await bookDOCX(entries, opts, data), title + (diffOn ? `（${versions[k].v}）` : '') + '.docx');
+      const opts = versions[k].doc.options;
+      downloadBlob(await bookDOCX(entries, opts, data, undefined, undefined, k === versions.length - 1 ? strokeSVGs() : []), title + (diffOn ? `（${versions[k].v}）` : '') + '.docx');
     }
     if (ansDoc) { await new Promise(r => setTimeout(r, 600)); downloadBlob(await bookDOCX(entries, ansDoc.options, data), title + '（答案）.docx'); }
-  }, `已下載「${title}${diffOn ? `」${versions.map(x => x.v).join('、')} ${versions.length} 個檔案` : '.docx」'}，通常會在電腦的「下載」資料夾。${roster.length ? 'Word 檔不會逐一印上學生姓名，需要的話請用 PDF 或列印。' : ''}${strokePages ? 'Word 檔不含筆順附頁，需要的話請用 PDF 或列印。' : ''}`);
+  }, `已下載「${title}${diffOn ? `」${versions.map(x => x.v).join('、')} ${versions.length} 個檔案` : '.docx」'}，通常會在電腦的「下載」資料夾。${strokePages && diffOn ? `筆順附頁在 ${versions[versions.length - 1].v} 版的 Word 檔最後面。` : ''}`);
 
   const seq = presetSequence(preset, shownTimes, customSeq);
   const favSnapshot = () => ({preset, times, customSeq, contentMode, cellSize, zhuyinMode, crossOpacity, traceTone, diffCount, presetB, timesB, customSeqB, presetC, timesC, customSeqC, strokeAppendix, answerKey});
@@ -315,7 +330,17 @@ export default function SimpleCopybook({onAdvanced}) {
     if (ok(x.presetC)) setPresetC(x.presetC); if (Number.isInteger(x.timesC)) setTimesC(x.timesC); setCustomSeqC(cleanCustomSeq(x.customSeqC));
     setStrokeAppendix(x.strokeAppendix === true); setAnswerKey(x.answerKey === true); setMessage(`已套用常用設定「${f.name}」。`); };
   const saveFav = () => { const name = favName.trim().slice(0, 16) || `設定 ${favs.length + 1}`; setFavs(v => [...v.filter(f => f.name !== name), {name, s: favSnapshot()}].slice(-12)); setFavName(''); setFavAdding(false); setMessage(`已存成常用設定「${name}」，下次在第 3 步上方點一下就能套用。`); };
-  const moreActive = [diffOn && `${'ABC'.slice(0, diffCount).split('').join('、')} 版`, strokeAppendix && '筆順附頁', customTitle.trim() && '自訂標題', (roster.length ? `名單 ${roster.length} 人` : (studentName.trim() || studentClass.trim()) && '班級姓名')].filter(Boolean);
+  // 帶到進階模式：A 版直接開啟；B、C 版另存成已存學習單，在進階模式的「開啟或管理已存學習單」可找到
+  const toAdvanced = async () => {
+    let extra = [];
+    for (const x of versions.slice(1)) {
+      const t = `${title}（${x.v} 版）`, content = captureCopybookContent(entries, getLessonMeta, getBook);
+      const config = {layout: 'copybook', lesson, selected: x.doc.selected, options: {...x.doc.options, title: t, titleCustom: true}, ...content};
+      try { await localApi({action: 'saveWorksheet', id: crypto.randomUUID(), version: 0, title: t, config}); extra.push(x.v); } catch {}
+    }
+    onAdvanced?.({lesson, selected: doc.selected, options: diffOn ? {...doc.options, title: `${title}（A 版）`, titleCustom: true} : doc.options, entrySnapshots: entries.filter(e => e.lesson === CUSTOM_LESSON_ID), lessonSnapshots: customLessonSnapshot, bookSnapshots: customBookSnapshot, extraSaved: extra});
+  };
+  const moreActive = [diffOn && `${'ABC'.slice(0, diffCount).split('').join('、')} 版`, strokeAppendix && '筆順附頁', customTitle.trim() && '自訂標題', (studentName.trim() || studentClass.trim()) && '班級姓名'].filter(Boolean);
   const changedZhuyin = groups.reduce((n, g) => n + g.targets.filter(i => zhuyinOn(`${g.key}|${i}`) !== showZhuyin).length, 0);
   const quiz = preset === 'quiz';
   const noZhuyin = !(showZhuyin || quiz) ? [] : custom.filter(c => missingZhuyin(c.pinyin) && groups.some(g => g.entries[0]?.id.startsWith(c.id + ':')));
@@ -336,6 +361,11 @@ export default function SimpleCopybook({onAdvanced}) {
       <button type="button" className="shrink-0 rounded-xl border-2 border-amber-400 bg-white px-3 py-1.5 font-bold" onClick={() => { setGuide(false); try { window.localStorage.setItem(GUIDE, '1'); } catch {} }}>知道了</button>
     </div>}
     <div className="space-y-5">
+      {pickDone && !!groups.length ? <section className={card + ' !space-y-2'} aria-label="已選語詞">
+        <div className="flex flex-wrap items-center gap-2"><span className={stepNo}>1</span><span className={stepNo}>2</span><span className="text-lg font-bold">已選 {groups.length} 個語詞</span>
+          <button type="button" className={btn + ' ml-auto min-h-10 text-sm'} onClick={() => setPickDone(false)}>修改語詞</button></div>
+        <p className="hanzi-kai text-lg text-slate-700">{groups.slice(0, 12).map(g => g.word).join('、')}{groups.length > 12 ? `…等 ${groups.length} 個` : ''}</p>
+      </section> : <>
       <section className={card} aria-labelledby="s1">
         <h2 id="s1" className={stepTitle}><span className={stepNo}>1</span>{source === 'book' ? '選課本與課次' : '輸入要練習的語詞'}</h2>
         <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="語詞來源">
@@ -397,8 +427,10 @@ export default function SimpleCopybook({onAdvanced}) {
           <div className="flex flex-wrap gap-1.5">{groups.map(g => <span key={g.key} className="hanzi-kai inline-flex items-center gap-1 rounded-lg border bg-white py-0.5 pl-2 pr-1 text-lg">{g.word}
             <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700" aria-label={`移除 ${g.word}`} onClick={() => removeGroup(g)}><X size={16}/></button></span>)}</div>
         </div>}
+        {!!groups.length && <button type="button" className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-blue-700 bg-blue-50 px-4 py-2 font-bold text-blue-900" onClick={() => { setPickDone(true); setTimeout(() => document.getElementById('s3')?.scrollIntoView({behavior: 'smooth', block: 'start'}), 50); }}>選好了，收起來看第 3 步<ChevronDown size={18}/></button>}
       </section>
 
+      </>}
       <section className={card} aria-labelledby="s3">
         <h2 id="s3" className={stepTitle}><span className={stepNo}>3</span>選擇練習方式</h2>
         <div className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-2">
@@ -410,6 +442,7 @@ export default function SimpleCopybook({onAdvanced}) {
             <button type="button" className={btn + ' min-h-10 py-1 text-sm'} onClick={saveFav}>儲存</button><button type="button" className="min-h-10 px-2 text-sm text-slate-600 underline" onClick={() => setFavAdding(false)}>取消</button></span>
             : <button type="button" className="min-h-10 rounded-xl border-2 border-dashed px-3 text-sm font-bold text-slate-700 hover:bg-white" onClick={() => setFavAdding(true)}>＋ 把目前設定存起來</button>}
           {!favs.length && !favAdding && <span className="text-xs text-slate-500">練習方式、次數、字格、注音、差異化等設定可以存起來，下次一鍵套用。</span>}
+          {!!favs.length && !favAdding && <span className="w-full text-xs text-slate-500">常用設定存在這台電腦；換電腦前，到「進階模式」右上角按「下載備份檔」就會一起帶走。</span>}
         </div>
         <details className="rounded-xl border-2 border-slate-300 bg-white" open={presetOpen} onToggle={e => setPresetOpen(e.currentTarget.open)}>
           <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 p-3 [&::-webkit-details-marker]:hidden">
@@ -492,36 +525,33 @@ export default function SimpleCopybook({onAdvanced}) {
 
         <details className="group rounded-xl border-2 border-slate-300 bg-white" open={moreOpen} onToggle={e => setMoreOpen(e.currentTarget.open)}>
           <summary className="flex min-h-12 cursor-pointer list-none flex-wrap items-center gap-2 p-3 [&::-webkit-details-marker]:hidden">
-            <span className="font-bold">更多設定</span><span className="text-sm text-slate-600">差異化 A／B／C 版、筆順附頁、標題、學生名單</span>
+            <span className="font-bold">更多設定</span><span className="text-sm text-slate-600">差異化 A／B／C 版、筆順附頁、標題、班級姓名</span>
             {!!moreActive.length && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-900">已使用：{moreActive.join('、')}</span>}
             <ChevronDown size={18} className="ml-auto group-open:rotate-180"/>
           </summary>
           <div className="space-y-4 border-t p-3">
         <fieldset className="space-y-3 rounded-xl border-2 border-dashed border-slate-300 p-3"><legend className="px-1 font-bold">差異化：同一份語詞印不同難度</legend>
           <div className="flex flex-wrap gap-2">{[[1, '不需要'], [2, 'A、B 兩版'], [3, 'A、B、C 三版']].map(([v, l]) => <button key={v} type="button" aria-pressed={diffCount === v} className={chip(diffCount === v)} onClick={() => setDiffCount(v)}>{l}</button>)}</div>
-          <p className="text-[15px] text-slate-600">例如 A 版「描紅後自己寫」給大部分學生、B 版「描紅練習」給需要多一點提示的學生、C 版「描紅＋部件提示」給還在學字形結構的學生。各版標題一樣，只在頁尾小字標示 A、B、C，學生不容易察覺。搭配下面的「學生名單」，可以每人直接印他的版本。</p>
+          <p className="text-[15px] text-slate-600">例如 A 版「描紅後自己寫」給大部分學生、B 版「描紅練習」給需要多一點提示的學生、C 版「描紅＋部件提示」給還在學字形結構的學生。各版標題一樣，只在頁尾小字標示 A、B、C，學生不容易察覺。</p>
           {diffCount >= 2 && <VersionSettings label="B" preset={presetB} setPreset={setPresetB} times={shownTimesB} setTimes={setTimesB} customSeq={customSeqB} setCustomSeq={setCustomSeqB} same={presetSequence(presetB, shownTimesB, customSeqB).join() === seq.join()}/>}
           {diffCount >= 3 && <VersionSettings label="C" preset={presetC} setPreset={setPresetC} times={shownTimesC} setTimes={setTimesC} customSeq={customSeqC} setCustomSeq={setCustomSeqC} same={[seq.join(), presetSequence(presetB, shownTimesB, customSeqB).join()].includes(presetSequence(presetC, shownTimesC, customSeqC).join())}/>}
         </fieldset>
         <fieldset className="space-y-2"><legend className="font-bold">筆順附頁</legend>
           <div className="flex flex-wrap gap-2">{[[false, '不需要'], [true, '加印筆順附頁']].map(([v, l]) => <button key={String(v)} type="button" aria-pressed={strokeAppendix === v} className={chip(strokeAppendix === v)} onClick={() => setStrokeAppendix(v)}>{l}</button>)}</div>
-          <p className="text-[15px] text-slate-600">在學習單後面加印每個生字的筆順分解（一筆一格，紅色是這一筆），適合剛學寫字或需要筆順提示的孩子。只會加在 PDF 與列印，Word 檔不含。</p>
+          <p className="text-[15px] text-slate-600">在學習單後面加印每個生字的筆順分解（一筆一格，紅色是這一筆），適合剛學寫字或需要筆順提示的孩子。PDF、列印和 Word 檔都會附上。</p>
           {!!noStrokeChars.length && <p role="status" className="text-sm text-amber-900">「{noStrokeChars.join('、')}」沒有筆順資料，附頁會略過這些字。</p>}
         </fieldset>
         <label className="block space-y-1"><span className="font-bold">學習單標題</span>
           <input className="block w-full rounded-lg border-2 p-2" maxLength={45} value={title} onChange={e => setCustomTitle(e.target.value)} aria-describedby="title-hint"/>
           <span id="title-hint" className="flex flex-wrap items-center gap-2 text-[15px] text-slate-600">{customTitle.trim() ? <>已自訂標題。<button type="button" className="font-bold text-blue-800 underline" onClick={() => setCustomTitle('')}>改回自動標題</button></> : '會依勾選的課次自動命名，也可以直接修改。'}</span>
         </label>
-        <details className="rounded-xl border bg-slate-50 p-3" open={!!(studentName || studentClass || rosterText)}>
-          <summary className="cursor-pointer font-bold">印上班級、姓名，或依學生名單每人一份（選填）</summary>
+        <details className="rounded-xl border bg-slate-50 p-3" open={!!(studentName || studentClass)}>
+          <summary className="cursor-pointer font-bold">預先印上班級、姓名（選填）</summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="block space-y-1"><span>班級</span><input className="block w-full rounded-lg border-2 bg-white p-2" maxLength={20} value={studentClass} onChange={e => setStudentClass(e.target.value)} placeholder="例如：五年三班"/></label>
-            <label className="block space-y-1"><span>姓名（只印一份時）</span><input className="block w-full rounded-lg border-2 bg-white p-2 disabled:opacity-50" maxLength={20} value={studentName} disabled={!!roster.length} onChange={e => setStudentName(e.target.value)} placeholder="例如：王小明"/></label>
+            <label className="block space-y-1"><span>姓名</span><input className="block w-full rounded-lg border-2 bg-white p-2" maxLength={20} value={studentName} onChange={e => setStudentName(e.target.value)} placeholder="例如：王小明"/></label>
           </div>
-          <label className="mt-3 block space-y-1"><span className="font-bold">學生名單：每人印一份</span>
-            <textarea rows={4} className="block w-full rounded-lg border-2 bg-white p-2" value={rosterText} onChange={e => setRosterText(e.target.value)} placeholder={diffOn ? '每行一位，名字後面加版本，例如：\n王小明\n李小華 B\n陳小美 C' : '每行一位，例如：\n王小明\n李小華'}/></label>
-          {!!roster.length && <p role="status" className="mt-1 text-[15px] text-blue-900">共 {roster.length} 位學生{diffOn ? '：' + versions.map(x => `${x.v} 版 ${roster.filter(r => r.v === x.v).length} 人`).join('、') : ''}。每人一份，姓名會印在頁首。{roster.some(r => r.fallback) ? `「${roster.filter(r => r.fallback).map(r => r.name).join('、')}」指定的版本目前沒有開，先印 A 版。` : ''}</p>}
-          <p className="mt-2 text-[15px] text-slate-600">名字後面沒寫版本就是 A 版。為了保護隱私，姓名和名單都不會被記住，也不會放進分享連結。</p>
+          <p className="mt-2 text-[15px] text-slate-600">適合幫個別學生準備專屬學習單。為了保護隱私，姓名不會被記住，也不會放進分享連結。</p>
         </details>
           </div>
         </details>
@@ -533,14 +563,14 @@ export default function SimpleCopybook({onAdvanced}) {
           <div><dt className="font-bold">孩子的語詞不在課本清單裡？</dt><dd>第 1 步按「自己輸入語詞」，把聯絡簿或考卷上的語詞打進去。</dd></div>
           <div><dt className="font-bold">同一張想放好幾課？</dt><dd>勾完一課後換到下一課繼續勾，已勾選的語詞都會保留。</dd></div>
           <div><dt className="font-bold">下次還要重選嗎？</dt><dd>不用，這台電腦的瀏覽器會記住你上次的選擇（學生姓名除外）。</dd></div>
-          <div><dt className="font-bold">想讓每個學生拿到不同難度？</dt><dd>第 3 步打開「更多設定」，選「A、B 兩版」或「A、B、C 三版」，再在學生名單的名字後面寫版本（例如「李小華 B」），就會每人一份、各印各的版本。</dd></div>
+          <div><dt className="font-bold">想讓每個學生拿到不同難度？</dt><dd>第 3 步打開「更多設定」，選「A、B 兩版」或「A、B、C 三版」，每一版各選練習方式，再依學生程度發下不同版本。</dd></div>
           <div><dt className="font-bold">只有手機可以用嗎？</dt><dd>可以。按「下載 PDF」存到手機，再用印表機 App 或傳到電腦列印。</dd></div>
           <div><dt className="font-bold">目前有哪些教材？</dt><dd>南一、康軒、翰林一到六年級上學期。下學期的語詞可以用「自己輸入語詞」。</dd></div>
         </dl>
       </details>
       <div className="rounded-2xl border border-dashed bg-white p-4 text-[15px] text-slate-600 space-y-2">
         <p>想調整語詞位置、單一字格的提示，或改 A3 紙、十字線？</p>
-        <button type="button" className={btn + ' text-sm'} disabled={!entries.length} onClick={() => onAdvanced?.({lesson, selected: doc.selected, options: doc.options, entrySnapshots: entries.filter(e => e.lesson === CUSTOM_LESSON_ID), lessonSnapshots: customLessonSnapshot, bookSnapshots: customBookSnapshot})}><SlidersHorizontal size={16}/>帶到進階模式細調</button>
+        <button type="button" className={btn + ' text-sm'} disabled={!entries.length} onClick={toAdvanced}><SlidersHorizontal size={16}/>帶到進階模式細調</button>
       </div>
     </div>
 
@@ -552,7 +582,7 @@ export default function SimpleCopybook({onAdvanced}) {
         <button type="button" className={btn + ' text-sm'} disabled={!ready || !!busy} onClick={doWord}><FileText size={16}/>Word 檔</button>
       </div>
       <p role="status" aria-live="polite" className="min-h-6 text-sm text-blue-900">
-        {message || shareNote || (!entries.length ? '' : loading ? '正在載入字形…' : `共 ${groups.length} 個語詞・${roster.length ? `${roster.length} 位學生共 ${bookPages} 頁` : diffOn ? versions.map((x, k) => `${x.v} 版 ${versionPages[k]} 頁`).join('＋') : `${bookPages} 頁`}${ansPlan ? `（含答案卷 ${ansPlan.pages.length} 頁）` : ''}${strokePages ? `＋筆順附頁 ${strokePages} 頁` : ''}（A4）`)}
+        {message || shareNote || (!entries.length ? '' : loading ? '正在載入字形…' : `共 ${groups.length} 個語詞・${diffOn ? versions.map((x, k) => `${x.v} 版 ${versionPages[k]} 頁`).join('＋') : `${bookPages} 頁`}${ansPlan ? `（含答案卷 ${ansPlan.pages.length} 頁）` : ''}${strokePages ? `＋筆順附頁 ${strokePages} 頁` : ''}（A4）`)}
       </p>
       {!!allMissingParts.length && <p role="status" className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">「{allMissingParts.join('、')}」沒有部件資料，部件提示的那幾格改印描紅。</p>}
       {!!tooLong.length && <p role="alert" className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">「{tooLong.join('、')}」太長，一欄放不下，請把字格改小，或選「只印生字」。</p>}

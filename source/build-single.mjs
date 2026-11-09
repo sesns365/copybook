@@ -13,6 +13,11 @@ const read = f => fs.readFileSync(path.join(out, f.replace(/^\.\//, '')), 'utf8'
 html = html.replace(/<link rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/g, (_, f) => `<style>${read(f).replace(/@font-face\{font-family:"?MOE Standard Kai"?;[^}]*\}/g, '')}</style>`);
 let js = '';
 html = html.replace(/<script type="module" crossorigin src="([^"]+)"><\/script>/, (_, f) => { js = read(f); return ''; });
+// 離線版內嵌課本用字的楷書字型（罕用字改用電腦內建楷書）
+const core = +fs.readFileSync('scripts/kai-core-count.txt', 'utf8');
+const kaiCSS = fs.readFileSync('src/app/kai-font.css', 'utf8').split('\n').filter(l => { const m = l.match(/kai-(\d+)\.woff2/); return m && +m[1] < core; })
+  .map(l => l.replace(/url\("\/fonts\/kai\/(kai-\d+\.woff2)"\)/, (_, f) => `url(data:font/woff2;base64,${fs.readFileSync('public/fonts/kai/' + f).toString('base64')})`)).join('');
+html = html.replace('</head>', () => `<style>${kaiCSS}</style></head>`);
 const favicon = 'data:image/svg+xml;base64,' + fs.readFileSync('public/favicon.svg').toString('base64');
 html = html.replace(/<link rel="icon" href="[^"]+">/, () => `<link rel="icon" href="${favicon}">`);
 

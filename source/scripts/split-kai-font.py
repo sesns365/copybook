@@ -25,6 +25,7 @@ slices = [basic]; used = set(basic)
 for g in range(1, 8):
     cps = sorted(c for c, v in grade.items() if v == g and c in have and c not in used); used |= set(cps)
     slices += [cps[i:i + 250] for i in range(0, len(cps), 250)]
+core = len(slices)  # 前面這幾個是課本用字，離線版會內嵌
 rest = [c for c in cmap if c not in used]
 slices += [rest[i:i + 1200] for i in range(0, len(rest), 1200)]
 os.makedirs('public/fonts/kai', exist_ok=True)
@@ -43,4 +44,5 @@ for i, sl in enumerate(slices):
     ft.flavor = 'woff2'; ft.save(f'public/fonts/kai/kai-{i:03d}.woff2')
     css.append('@font-face{font-family:"MOE Standard Kai";src:url("/fonts/kai/kai-%03d.woff2") format("woff2");font-display:swap;unicode-range:%s}' % (i, ranges(sl)))
 open('src/app/kai-font.css', 'w').write('\n'.join(css) + '\n')
+open('scripts/kai-core-count.txt', 'w').write(str(core))
 print(len(slices), 'files')

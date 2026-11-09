@@ -1,5 +1,8 @@
 // 以瀏覽器 localStorage 取代原網站的伺服器 API，介面與原本 api({action}) 相同。
 const KEY = 'copybook-tool:worksheets:v1';
+// 簡易模式的「我的常用設定」也一起備份
+const FAVS = 'copybook-tool:favorites';
+export function readFavorites(): any[] { try { const v = JSON.parse(window.localStorage.getItem(FAVS) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } }
 
 type Row = { id: string; title: string; config: string; version: number; updated: string };
 
@@ -57,7 +60,7 @@ export async function localApi(payload: any): Promise<any> {
 
 // 備份：把所有已存學習單匯出成一個 JSON 檔；匯入時以「較新版本」合併。
 export function exportBackup() {
-  const blob = new Blob([JSON.stringify({ app: 'copybook-tool', version: 1, exportedAt: new Date().toISOString(), rows: readRows() }, null, 1)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ app: 'copybook-tool', version: 1, exportedAt: new Date().toISOString(), rows: readRows(), favorites: readFavorites() }, null, 1)], { type: 'application/json' });
   const a = document.createElement('a');
   const d = new Date();
   a.href = URL.createObjectURL(blob);
@@ -70,7 +73,14 @@ export async function importBackup(file: File) {
   const data = JSON.parse(await file.text());
   const incoming: Row[] = Array.isArray(data?.rows) ? data.rows : [];
   const valid = incoming.filter(r => r && typeof r.id === 'string' && typeof r.title === 'string' && typeof r.config === 'string' && (() => { try { return JSON.parse(r.config)?.layout; } catch { return false; } })());
-  if (!valid.length) throw new Error('檔案中沒有可匯入的學習單');
+  const favs = (Array.isArray(data?.favorites) ? data.favorites : []).filter((f: any) => f && typeof f.name === 'string' && f.s && typeof f.s === 'object');
+  if (!valid.length && !favs.length) throw new Error('檔案中沒有可匯入的學習單或常用設定');
+  if (favs.length) {
+    const merged = new Map(readFavorites().map((f: any) => [f.name, f]));
+    for (const f of favs) merged.set(f.name.slice(0, 16), { name: f.name.slice(0, 16), s: f.s });
+    try { window.localStorage.setItem(FAVS, JSON.stringify([...merged.values()].slice(-12))); } catch {}
+    window.dispatchEvent(new Event('copybook-favorites-changed'));
+  }
   const map = new Map(readRows().map(r => [r.id, r]));
   let added = 0;
   for (const r of valid) {

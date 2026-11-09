@@ -184,17 +184,3 @@ export function decodeShare(text) {
     return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))));
   } catch { return null; }
 }
-
-// 學生名單：每行一位，名字後面可加 A、B、C 指定版本（例如「王小明 B」），沒寫就是 A 版。
-export function parseRoster(text, versions = 1) {
-  const out = [];
-  for (const raw of String(text).split(/[\n,，、;；]+/)) {
-    const line = raw.trim(); if (!line) continue;
-    const m = line.match(/^(.*?)[\s（(]*([ABCabc])[)）]?$/);
-    let name = line, v = 'A', fallback = false;
-    if (m && m[1].trim()) { name = m[1].trim(); v = m[2].toUpperCase(); }
-    if ('ABC'.indexOf(v) >= versions) { fallback = true; v = 'A'; }
-    out.push({name: name.slice(0, 20), v, fallback});
-  }
-  return out.slice(0, 60);
-}
