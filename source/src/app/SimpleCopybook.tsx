@@ -569,7 +569,7 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <fieldset className="space-y-2 sm:col-span-2"><legend className="font-bold">字格大小</legend>
-            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="字格大小">{CELL_SIZES.map(v => { const l = SIZE_NAME[v]; return <button key={v} type="button" role="radio" aria-checked={cellSize === v} aria-label={`${l ? l + ' ' : ''}${v} 公釐`} className={chip(cellSize === v) + ' flex min-w-14 flex-col items-center px-2 py-1 leading-tight'} onClick={() => setCellSize(v)}>
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="字格大小">{CELL_SIZES.map(v => { const l = SIZE_NAME[v]; return <button key={v} type="button" role="radio" aria-checked={cellSize === v} aria-label={`${l ? l + ' ' : ''}${v} 毫米`} className={chip(cellSize === v) + ' flex min-w-14 flex-col items-center px-2 py-1 leading-tight'} onClick={() => setCellSize(v)}>
               <span>{v}<span className="text-xs font-normal"> mm</span></span>{l && <span className="text-xs font-normal">{l}</span>}</button>; })}</div>
             <p className="text-sm text-slate-600">{entries.length ? `目前一頁 ${plan.perPage} 欄，每欄 ${plan.rows} 格。` : '數字是字格邊長；一般是 20 mm。'}</p></fieldset>
         </div>
