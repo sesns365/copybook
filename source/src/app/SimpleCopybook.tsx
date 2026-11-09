@@ -613,7 +613,7 @@ export default function SimpleCopybook({onAdvanced}) {
         </dl>
       </details>
       <div className="rounded-2xl border border-dashed bg-white p-4 text-[15px] text-slate-600 space-y-2">
-        <p>想調整語詞位置、單一字格的提示，或改用 A3 紙？</p>
+        <p>想調整語詞位置、單一字格的提示，或把十字線濃淡調得更細？</p>
         <button type="button" className={btn + ' text-sm'} disabled={!entries.length} onClick={toAdvanced}><SlidersHorizontal size={16}/>帶到進階模式細調</button>
       </div>
     </div>
