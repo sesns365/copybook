@@ -437,17 +437,6 @@ export default function SimpleCopybook({onAdvanced}) {
       </>}
       <section className={card} aria-labelledby="s3">
         <h2 id="s3" className={stepTitle}><span className={stepNo}>3</span>選擇練習方式</h2>
-        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-2">
-          <span className="text-sm font-bold text-slate-700">我的常用設定</span>
-          {favs.map(f => <span key={f.name} className="inline-flex items-center rounded-xl border-2 border-blue-200 bg-white">
-            <button type="button" className="min-h-10 px-3 text-sm font-bold text-blue-900" onClick={() => applyFav(f)}>{f.name}</button>
-            <button type="button" className="inline-flex h-10 w-9 items-center justify-center text-slate-500 hover:text-red-700" aria-label={`刪除常用設定 ${f.name}`} onClick={() => setFavs(v => v.filter(x => x !== f))}><X size={16}/></button></span>)}
-          {favAdding ? <span className="inline-flex flex-wrap items-center gap-1"><input autoFocus className="min-h-10 w-36 rounded-lg border-2 bg-white px-2" maxLength={16} value={favName} onChange={e => setFavName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveFav(); if (e.key === 'Escape') setFavAdding(false); }} placeholder="例如：小明用"/>
-            <button type="button" className={btn + ' min-h-10 py-1 text-sm'} onClick={saveFav}>儲存</button><button type="button" className="min-h-10 px-2 text-sm text-slate-600 underline" onClick={() => setFavAdding(false)}>取消</button></span>
-            : <button type="button" className="min-h-10 rounded-xl border-2 border-dashed px-3 text-sm font-bold text-slate-700 hover:bg-white" onClick={() => setFavAdding(true)}>＋ 把目前設定存起來</button>}
-          {!favs.length && !favAdding && <span className="text-xs text-slate-500">練習方式、次數、字格、注音、差異化等設定可以存起來，下次一鍵套用。</span>}
-          {!!favs.length && !favAdding && <span className="w-full text-xs text-slate-500">常用設定存在這台電腦；換電腦前，到「進階模式」右上角按「下載備份檔」就會一起帶走。</span>}
-        </div>
         <details className="rounded-xl border-2 border-slate-300 bg-white" open={presetOpen} onToggle={e => setPresetOpen(e.currentTarget.open)}>
           <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 p-3 [&::-webkit-details-marker]:hidden">
             <span className="text-sm text-slate-600">目前</span>
@@ -562,26 +551,21 @@ export default function SimpleCopybook({onAdvanced}) {
         </details>
           </div>
         </details>
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-2">
+          <span className="text-sm font-bold text-slate-700">我的常用設定</span>
+          {favs.map(f => <span key={f.name} className="inline-flex items-center rounded-xl border-2 border-blue-200 bg-white">
+            <button type="button" className="min-h-10 px-3 text-sm font-bold text-blue-900" onClick={() => applyFav(f)}>{f.name}</button>
+            <button type="button" className="inline-flex h-10 w-9 items-center justify-center text-slate-500 hover:text-red-700" aria-label={`刪除常用設定 ${f.name}`} onClick={() => setFavs(v => v.filter(x => x !== f))}><X size={16}/></button></span>)}
+          {favAdding ? <span className="inline-flex flex-wrap items-center gap-1"><input autoFocus className="min-h-10 w-36 rounded-lg border-2 bg-white px-2" maxLength={16} value={favName} onChange={e => setFavName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveFav(); if (e.key === 'Escape') setFavAdding(false); }} placeholder="例如：小明用"/>
+            <button type="button" className={btn + ' min-h-10 py-1 text-sm'} onClick={saveFav}>儲存</button><button type="button" className="min-h-10 px-2 text-sm text-slate-600 underline" onClick={() => setFavAdding(false)}>取消</button></span>
+            : <button type="button" className="min-h-10 rounded-xl border-2 border-dashed px-3 text-sm font-bold text-slate-700 hover:bg-white" onClick={() => setFavAdding(true)}>＋ 把目前設定存起來</button>}
+          {!favs.length && !favAdding && <span className="text-xs text-slate-500">練習方式、次數、字格、注音、差異化等設定可以存起來，下次一鍵套用。</span>}
+          {!!favs.length && !favAdding && <span className="w-full text-xs text-slate-500">常用設定存在這台電腦；換電腦前，到「進階模式」右上角按「下載備份檔」就會一起帶走。</span>}
+        </div>
       </section>
-      <details className="rounded-2xl border bg-white p-4">
-        <summary className="cursor-pointer text-lg font-bold">常見問題</summary>
-        <dl className="mt-3 space-y-3 text-slate-700">
-          <div><dt className="font-bold">印出來的格子太小？</dt><dd>第 3 步把「字格大小」改成「大」或「特大」；列印時選「實際大小」或「100%」，不要選「符合頁面」。</dd></div>
-          <div><dt className="font-bold">孩子的語詞不在課本清單裡？</dt><dd>第 1 步按「自己輸入語詞」，把聯絡簿或考卷上的語詞打進去。</dd></div>
-          <div><dt className="font-bold">同一張想放好幾課？</dt><dd>勾完一課後換到下一課繼續勾，已勾選的語詞都會保留。</dd></div>
-          <div><dt className="font-bold">下次還要重選嗎？</dt><dd>不用，這台電腦的瀏覽器會記住你上次的選擇（學生姓名除外）。</dd></div>
-          <div><dt className="font-bold">想讓每個學生拿到不同難度？</dt><dd>第 3 步打開「更多設定」，選「A、B 兩版」或「A、B、C 三版」，每一版各選練習方式，再依學生程度發下不同版本。</dd></div>
-          <div><dt className="font-bold">只有手機可以用嗎？</dt><dd>可以。按「下載 PDF」存到手機，再用印表機 App 或傳到電腦列印。</dd></div>
-          <div><dt className="font-bold">目前有哪些教材？</dt><dd>南一、康軒、翰林一到六年級上學期。下學期的語詞可以用「自己輸入語詞」。</dd></div>
-        </dl>
-      </details>
-      <div className="rounded-2xl border border-dashed bg-white p-4 text-[15px] text-slate-600 space-y-2">
-        <p>想調整語詞位置、單一字格的提示，或改 A3 紙、十字線？</p>
-        <button type="button" className={btn + ' text-sm'} disabled={!entries.length} onClick={toAdvanced}><SlidersHorizontal size={16}/>帶到進階模式細調</button>
-      </div>
     </div>
 
-    <section id="simple-preview" aria-labelledby="s4" className={card + ' lg:sticky lg:top-4'}>
+    <section id="simple-preview" aria-labelledby="s4" className={card + ' lg:sticky lg:top-4 lg:row-span-2'}>
       <h2 id="s4" className={stepTitle}><span className={stepNo}>4</span>預覽與列印</h2>
       <div className="flex flex-wrap gap-2">
         <button type="button" className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-blue-700 bg-blue-700 px-4 py-2 font-bold text-white hover:bg-blue-800 disabled:opacity-40" disabled={!ready || !!busy} onClick={doPDF}><Download size={18}/>下載 PDF</button>
@@ -615,6 +599,24 @@ export default function SimpleCopybook({onAdvanced}) {
       </div>
 
     </section>
+    <div className="space-y-5 lg:col-start-1">
+      <details className="rounded-2xl border bg-white p-4">
+        <summary className="cursor-pointer text-lg font-bold">常見問題</summary>
+        <dl className="mt-3 space-y-3 text-slate-700">
+          <div><dt className="font-bold">印出來的格子太小？</dt><dd>第 3 步把「字格大小」改成「大」或「特大」；列印時選「實際大小」或「100%」，不要選「符合頁面」。</dd></div>
+          <div><dt className="font-bold">孩子的語詞不在課本清單裡？</dt><dd>第 1 步按「自己輸入語詞」，把聯絡簿或考卷上的語詞打進去。</dd></div>
+          <div><dt className="font-bold">同一張想放好幾課？</dt><dd>勾完一課後換到下一課繼續勾，已勾選的語詞都會保留。</dd></div>
+          <div><dt className="font-bold">下次還要重選嗎？</dt><dd>不用，這台電腦的瀏覽器會記住你上次的選擇（學生姓名除外）。</dd></div>
+          <div><dt className="font-bold">想讓每個學生拿到不同難度？</dt><dd>第 3 步打開「更多設定」，選「A、B 兩版」或「A、B、C 三版」，每一版各選練習方式，再依學生程度發下不同版本。</dd></div>
+          <div><dt className="font-bold">只有手機可以用嗎？</dt><dd>可以。按「下載 PDF」存到手機，再用印表機 App 或傳到電腦列印。</dd></div>
+          <div><dt className="font-bold">目前有哪些教材？</dt><dd>南一、康軒、翰林一到六年級上學期。下學期的語詞可以用「自己輸入語詞」。</dd></div>
+        </dl>
+      </details>
+      <div className="rounded-2xl border border-dashed bg-white p-4 text-[15px] text-slate-600 space-y-2">
+        <p>想調整語詞位置、單一字格的提示，或改用 A3 紙？</p>
+        <button type="button" className={btn + ' text-sm'} disabled={!entries.length} onClick={toAdvanced}><SlidersHorizontal size={16}/>帶到進階模式細調</button>
+      </div>
+    </div>
 
     {full && !!entries.length && <FullPreview svg={pageSVG} page={shown} pages={pages} onPage={setPage} onClose={() => setFull(false)}/>}
     {!!entries.length && !previewVisible && <a href="#simple-preview" className="fixed inset-x-3 bottom-3 z-40 flex items-center justify-between rounded-2xl bg-blue-700 px-4 py-3 font-bold text-white shadow-lg lg:hidden">
