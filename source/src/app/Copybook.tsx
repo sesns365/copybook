@@ -312,8 +312,8 @@ export default function Copybook({seed,api,teachingSettings,onDirty,onNavigation
   if(hasUnsaved&&!window.confirm('進階模式裡有尚未儲存的修改。要改用簡易模式帶過來的學習單嗎？（目前修改會暫存為本機草稿）'))return;
   if(!detachLocalDraft({allowDiscard:true}))return;
   setPreserved({snapshots:seed.entrySnapshots||[],lessonSnapshots:seed.lessonSnapshots||{},bookSnapshots:seed.bookSnapshots||{}});setMissingSource([]);setBatchRules({});setConflict(null);setLegacySource(null);setSavedId('');setSavedVersion(0);draftId.current='';saveRequest.current=null;setSavePending(false);
-  setLesson(seed.lesson);resetDocument({selected:seed.selected,options:seed.options});setSavedDocumentKey('');chooseEntry([...(seed.entrySnapshots||[]),...all].find(e=>e.id===seed.selected[0])||all[0]);setEditorTab('setup');setPreviewMode('paper');
-  setStatus('已帶入簡易模式的學習單，可以拖曳排版或逐格調整。要保留這份設定請按「儲存學習單設定」。');
+  setLesson(seed.lesson);if(seed.savedId){loadDocument({selected:seed.selected,options:seed.options});setSavedId(seed.savedId);setSavedVersion(seed.savedVersion||1);}else{resetDocument({selected:seed.selected,options:seed.options});setSavedDocumentKey('');}chooseEntry([...(seed.entrySnapshots||[]),...all].find(e=>e.id===seed.selected[0])||all[0]);setEditorTab('setup');setPreviewMode('paper');
+  setStatus(seed.savedId?'已帶入簡易模式的學習單並自動儲存，可以拖曳排版或逐格調整；修改後再按「儲存學習單設定」。':'已帶入簡易模式的學習單，可以拖曳排版或逐格調整。要保留這份設定請按「儲存學習單設定」。');
  },[seed?.nonce]);
  const load=id=>{
   if(operation.current||!requireAppliedBatch())return;

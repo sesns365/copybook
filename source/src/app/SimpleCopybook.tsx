@@ -332,13 +332,15 @@ export default function SimpleCopybook({onAdvanced}) {
   const saveFav = () => { const name = favName.trim().slice(0, 16) || `設定 ${favs.length + 1}`; setFavs(v => [...v.filter(f => f.name !== name), {name, s: favSnapshot()}].slice(-12)); setFavName(''); setFavAdding(false); setMessage(`已存成常用設定「${name}」，下次在第 3 步上方點一下就能套用。`); };
   // 帶到進階模式：A 版直接開啟；B、C 版另存成已存學習單，在進階模式的「開啟或管理已存學習單」可找到
   const toAdvanced = async () => {
-    let extra = [];
-    for (const x of versions.slice(1)) {
-      const t = `${title}（${x.v} 版）`, content = captureCopybookContent(entries, getLessonMeta, getBook);
-      const config = {layout: 'copybook', lesson, selected: x.doc.selected, options: {...x.doc.options, title: t, titleCustom: true}, ...content};
-      try { await localApi({action: 'saveWorksheet', id: crypto.randomUUID(), version: 0, title: t, config}); extra.push(x.v); } catch {}
+    const content = captureCopybookContent(entries, getLessonMeta, getBook), saved = [];
+    let aId = '', aVersion = 0;
+    const aOptions = diffOn ? {...doc.options, title: `${title}（A 版）`, titleCustom: true} : doc.options;
+    for (const x of versions) {
+      const isA = x.v === 'A', t = isA ? aOptions.title : `${title}（${x.v} 版）`, options = isA ? aOptions : {...x.doc.options, title: t, titleCustom: true};
+      const id = crypto.randomUUID();
+      try { const r = await localApi({action: 'saveWorksheet', id, version: 0, title: t, config: {layout: 'copybook', lesson, selected: x.doc.selected, options, ...content}}); saved.push(x.v); if (isA) { aId = id; aVersion = r.version; } } catch {}
     }
-    onAdvanced?.({lesson, selected: doc.selected, options: diffOn ? {...doc.options, title: `${title}（A 版）`, titleCustom: true} : doc.options, entrySnapshots: entries.filter(e => e.lesson === CUSTOM_LESSON_ID), lessonSnapshots: customLessonSnapshot, bookSnapshots: customBookSnapshot, extraSaved: extra});
+    onAdvanced?.({lesson, selected: doc.selected, options: aOptions, entrySnapshots: entries.filter(e => e.lesson === CUSTOM_LESSON_ID), lessonSnapshots: customLessonSnapshot, bookSnapshots: customBookSnapshot, savedId: aId, savedVersion: aVersion, extraSaved: saved});
   };
   const moreActive = [diffOn && `${'ABC'.slice(0, diffCount).split('').join('、')} 版`, strokeAppendix && '筆順附頁', customTitle.trim() && '自訂標題', (studentName.trim() || studentClass.trim()) && '班級姓名'].filter(Boolean);
   const changedZhuyin = groups.reduce((n, g) => n + g.targets.filter(i => zhuyinOn(`${g.key}|${i}`) !== showZhuyin).length, 0);

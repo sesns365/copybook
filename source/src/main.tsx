@@ -53,7 +53,7 @@ function App() {
           <img src={logoUrl} alt="特工365" className="pointer-events-none absolute right-4 top-1/2 h-14 w-14 -translate-y-1/2 opacity-80 max-sm:right-2.5 max-sm:h-11 max-sm:w-11" />
         </header>
         <main className="mx-auto max-w-[1600px] px-4 py-4 max-lg:pb-24">
-          <div hidden={mode !== 'simple'}><SimpleCopybook onAdvanced={(doc: any) => { if (doc.extraSaved?.length) { setReloadKey(k => k + 1); setMessage(`已開啟 A 版；${doc.extraSaved.join('、')} 版已另存，可在「開啟或管理已存學習單」找到。`); } setSeed({...doc, nonce: Date.now()}); setModeState('advanced'); try { window.localStorage.setItem('copybook-tool:mode', 'advanced'); } catch {} window.scrollTo({top: 0}); }} /></div>
+          <div hidden={mode !== 'simple'}><SimpleCopybook onAdvanced={(doc: any) => { if (doc.extraSaved?.length) { setReloadKey(k => k + 1); setMessage(doc.extraSaved.length > 1 ? `${doc.extraSaved.join('、')} 版都已自動儲存，目前開啟 A 版；其他版本在「開啟或管理已存學習單」。` : '已自動儲存這份學習單。'); } setSeed({...doc, nonce: Date.now()}); setModeState('advanced'); try { window.localStorage.setItem('copybook-tool:mode', 'advanced'); } catch {} window.scrollTo({top: 0}); }} /></div>
           <div hidden={mode !== 'advanced'}>
             <p className="mb-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-950">
               進階模式可拖曳排版、逐字逐格調整並儲存多份學習單。儲存的設定只留在這台裝置的這個瀏覽器，換電腦前請按右上「下載備份檔」。
