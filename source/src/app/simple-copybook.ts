@@ -3,33 +3,37 @@
 // 預覽、PDF、Word 與進階模式共用 copybook-export 的排版。
 import {BOOK_DEFAULTS} from './copybook-export';
 
+// 練習方式：第 1 次固定是示範字，中間依 stages 依序分配（前面的階段多分一格），last 是最後一次。
+// 要新增組合，只要在這裡加一筆 {stages, last}；custom 由老師逐次自己排。
 export const SIMPLE_PRESETS = [
-  {id: 'trace', name: '描紅練習', note: '示範字之後都描紅', min: 2, defaultTimes: 3},
-  {id: 'traceBlank', name: '描紅後自己寫', note: '先描紅，最後一次自己寫', min: 2, defaultTimes: 4},
-  {id: 'progressive', name: '漸進練習', note: '描紅 → 描灰 → 自己寫', min: 3, defaultTimes: 5},
-  {id: 'parts', name: '部件提示', note: '先寫部分部件，再補完整', min: 2, defaultTimes: 3},
-  {id: 'blank', name: '看示範自己寫', note: '只有示範字，其餘留白', min: 2, defaultTimes: 3},
+  {id: 'trace', name: '描紅練習', note: '示範字之後都描紅', stages: ['trace'], min: 2, defaultTimes: 3},
+  {id: 'traceBlank', name: '描紅後自己寫', note: '先描紅，最後一次自己寫', stages: ['trace'], last: 'blank', min: 2, defaultTimes: 4},
+  {id: 'progressive', name: '漸進練習', note: '描紅 → 描灰 → 自己寫', stages: ['trace', 'gray'], last: 'blank', min: 3, defaultTimes: 5},
+  {id: 'traceParts', name: '描紅＋部件提示', note: '描紅 → 部件提示 → 自己寫', stages: ['trace', 'parts'], last: 'blank', min: 4, defaultTimes: 5},
+  {id: 'fullSteps', name: '四階段練習', note: '描紅 → 描灰 → 部件提示 → 自己寫', stages: ['trace', 'gray', 'parts'], last: 'blank', min: 5, defaultTimes: 6},
+  {id: 'parts', name: '部件提示', note: '先寫部分部件，再補完整', stages: ['parts'], min: 2, defaultTimes: 3},
+  {id: 'blank', name: '看示範自己寫', note: '只有示範字，其餘留白', stages: ['blank'], min: 2, defaultTimes: 3},
   {id: 'quiz', name: '看注音寫國字', note: '不印國字，只有注音（小考、複習用）', min: 1, defaultTimes: 1},
+  {id: 'custom', name: '自訂組合', note: '每一次要描紅、描灰、部件或自己寫，自己排', min: 2, defaultTimes: 5},
 ];
 
 export const MODE_LABEL = {model: '示範', trace: '描紅', gray: '描灰', blank: '自己寫', parts: '部件'};
+// 自訂組合每一格可以選的樣子（點一下依序切換）
+export const CUSTOM_MODES = ['trace', 'gray', 'parts', 'blank'];
+export const DEFAULT_CUSTOM = ['trace', 'gray', 'parts', 'blank', 'blank', 'blank', 'blank'];
+export const cleanCustomSeq = v => { const a = Array.isArray(v) ? v.filter(m => CUSTOM_MODES.includes(m)).slice(0, 7) : []; return [...a, ...DEFAULT_CUSTOM.slice(a.length)]; };
 
 // 每個語詞第 1、2…次練習時，生字格的樣子。
-export function presetSequence(preset, times) {
+export function presetSequence(preset, times, customSeq = DEFAULT_CUSTOM) {
   const n = Math.max(1, times);
   if (preset === 'quiz') return Array(n).fill('blank');
+  if (preset === 'custom') return ['model', ...cleanCustomSeq(customSeq).slice(0, n - 1)];
+  const p = SIMPLE_PRESETS.find(x => x.id === preset) || SIMPLE_PRESETS[1];
+  const stages = p.stages || ['trace'];
+  const middle = Math.max(0, n - 1 - (p.last ? 1 : 0));
   const seq = ['model'];
-  for (let i = 1; i < n; i++) {
-    if (preset === 'trace') seq.push('trace');
-    else if (preset === 'parts') seq.push('parts');
-    else if (preset === 'blank') seq.push('blank');
-    else if (preset === 'traceBlank') seq.push(i === n - 1 ? 'blank' : 'trace');
-    else {
-      // progressive：最後一次自己寫，中間前半描紅、後半描灰
-      const middle = n - 2, k = i - 1;
-      seq.push(i === n - 1 ? 'blank' : k < Math.ceil(middle / 2) ? 'trace' : 'gray');
-    }
-  }
+  for (let k = 0; k < middle; k++) seq.push(stages[Math.floor(k * stages.length / middle)]);
+  if (p.last && n > 1) seq.push(p.last);
   return seq;
 }
 
@@ -46,12 +50,12 @@ export function groupWords(entries) {
   return [...groups.values()].map(g => ({...g, targets: [...new Set(g.entries.map(e => e.targetIdx))].sort((a, b) => a - b)}));
 }
 
-export function buildSimpleDocument({groups, preset, times, contentMode, cellSize, showZhuyin, title, titleCustom, missingParts = new Set(), fieldValues = {}, keepZhuyinRail = false, zhuyinOverride = {}}) {
-  const seq = presetSequence(preset, times);
+export function buildSimpleDocument({groups, preset, times, customSeq, contentMode, cellSize, showZhuyin, title, titleCustom, missingParts = new Set(), fieldValues = {}, keepZhuyinRail = false, zhuyinOverride = {}}) {
+  const seq = presetSequence(preset, times, customSeq);
   const items = {}, selected = [];
   const defaultMode = preset === 'parts' ? 'parts' : preset === 'blank' ? 'blank' : 'trace';
   // 只有 trace／traceBlank／parts／blank 可以靠整張預設表達；其餘逐格寫明，進階模式仍可再改。
-  const needsCells = preset === 'progressive';
+  const needsCells = !['trace', 'traceBlank', 'parts', 'blank'].includes(preset);
   const quiz = preset === 'quiz';
   const cellFor = (mode, char) => {
     const m = mode === 'parts' && missingParts.has(char) ? 'trace' : mode;
@@ -90,7 +94,7 @@ export function buildSimpleDocument({groups, preset, times, contentMode, cellSiz
     contentMode, cellSize, showZhuyin: quiz ? true : showZhuyin, keepZhuyinRail: quiz ? false : keepZhuyinRail,
     repetitions: seq.length,
     showModel: !quiz,
-    blankLast: preset === 'traceBlank' || preset === 'progressive',
+    blankLast: preset !== 'blank' && preset !== 'quiz' && seq.length > 1 && seq[seq.length - 1] === 'blank',
     defaultMode: quiz ? 'blank' : defaultMode,
     paperSize: 'A4',
     // 一欄放得下就接著放下一個語詞（中間空一格），短語詞或只寫一次時比較省紙

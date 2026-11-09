@@ -1,14 +1,15 @@
 // @ts-nocheck
 "use client";
 import React, {useEffect, useMemo, useState} from 'react';
-import {Download, Printer, FileText, ChevronLeft, ChevronRight, SlidersHorizontal, X, Maximize2, Link2, Plus, BookOpen, PencilLine, Lightbulb} from 'lucide-react';
+import {Download, Printer, FileText, ChevronLeft, ChevronRight, SlidersHorizontal, X, Maximize2, Link2, Plus, BookOpen, PencilLine, Lightbulb, ChevronDown} from 'lucide-react';
 import {useCurriculum} from './CurriculumTitle';
 import {teachingCurriculum} from './curriculum-settings';
 import {DEFAULT_BOOK, BOOKS, PUBLISHERS, GRADE_NAMES, getBook as baseGetBook} from './curriculum-source';
 import {loadStrokeData, MISSING_STROKES} from './stroke-data';
 import {bookColumns, orderedBookEntries, bookPageSVG, bookDOCX, downloadBlob} from './copybook-export';
 import {automaticCopybookTitle} from './copybook-title';
-import {SIMPLE_PRESETS, MODE_LABEL, presetSequence, groupWords, buildSimpleDocument, buildZhuyinIndex, guessZhuyin, parseCustomWords, validCustomWord, normalizeZhuyin, missingZhuyin, polyphones, customEntries, customTargets, customLessonSnapshot, customBookSnapshot, CUSTOM_LESSON_ID, encodeShare, decodeShare} from './simple-copybook';
+import {CELL_SIZES} from './copybook-paper';
+import {SIMPLE_PRESETS, MODE_LABEL, CUSTOM_MODES, cleanCustomSeq, presetSequence, groupWords, buildSimpleDocument, buildZhuyinIndex, guessZhuyin, parseCustomWords, validCustomWord, normalizeZhuyin, missingZhuyin, polyphones, customEntries, customTargets, customLessonSnapshot, customBookSnapshot, CUSTOM_LESSON_ID, encodeShare, decodeShare} from './simple-copybook';
 import {downloadPDF, printPages} from './copybook-output';
 import {strokeOrderLayout, strokeOrderPageSVG} from './stroke-order-pages';
 
@@ -21,7 +22,7 @@ const readShared = () => {
   if (!m) return null;
   const s = decodeShare(m[1]);
   try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch {}
-  return s && s.v === 1 ? {lesson: s.l, picked: s.p, custom: s.c, preset: s.s, times: s.t, diffOn: s.d, presetB: s.sb, timesB: s.tb, contentMode: s.m, cellSize: s.z, zhuyinMode: s.zm || (s.y === false ? 'none' : 'show'), zhuyinOverride: s.zo, customTitle: s.h, shared: true} : null;
+  return s && s.v === 1 ? {lesson: s.l, picked: s.p, custom: s.c, preset: s.s, times: s.t, diffOn: s.d, presetB: s.sb, timesB: s.tb, contentMode: s.m, cellSize: s.z, customSeq: s.cs, customSeqB: s.csb, zhuyinMode: s.zm || (s.y === false ? 'none' : 'show'), zhuyinOverride: s.zo, customTitle: s.h, shared: true} : null;
 };
 const GUIDE = 'copybook-tool:guide-closed';
 
@@ -56,6 +57,25 @@ function Sequence({seq, small = false}) {
       style={{backgroundImage: 'linear-gradient(#0001,#0001),linear-gradient(#0001,#0001)', backgroundSize: '1px 100%,100% 1px', backgroundPosition: 'center', backgroundRepeat: 'no-repeat'}}>{SWATCH[m]}</span>)}</span>;
 }
 
+const SIZE_NAME = {15: '小', 20: '一般', 25: '大', 30: '特大', 40: '最大'};
+
+// 自訂組合：點每一格依序切換 描紅 → 描灰 → 部件 → 自己寫
+function CustomSeqEditor({seq, times, onChange, label = ''}) {
+  const n = Math.max(1, times - 1);
+  const cycle = i => onChange(cleanCustomSeq(seq.map((m, k) => k === i ? CUSTOM_MODES[(CUSTOM_MODES.indexOf(m) + 1) % CUSTOM_MODES.length] : m)));
+  const setAll = m => onChange(cleanCustomSeq(seq.map((x, k) => k < n ? m : x)));
+  return <div className="space-y-2 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/40 p-3">
+    <p className="font-bold">{label}自訂組合：點一格就換一種</p>
+    <div className="flex flex-wrap items-end gap-2">
+      <span className="flex flex-col items-center gap-1"><Sequence seq={['model']}/><span className="text-xs text-slate-600">第 1 次<br/>示範</span></span>
+      {seq.slice(0, n).map((m, i) => <button key={i} type="button" onClick={() => cycle(i)} aria-label={`第 ${i + 2} 次：${MODE_LABEL[m]}，點一下換`}
+        className="flex flex-col items-center gap-1 rounded-lg p-1 hover:bg-white"><Sequence seq={[m]}/><span className="text-xs text-slate-600">第 {i + 2} 次<br/><b className="text-blue-900">{MODE_LABEL[m]}</b></span></button>)}
+    </div>
+    <div className="flex flex-wrap items-center gap-1.5 text-sm"><span className="text-slate-600">全部改成：</span>{CUSTOM_MODES.map(m => <button key={m} type="button" className="rounded-lg border bg-white px-2 py-0.5 font-bold" onClick={() => setAll(m)}>{MODE_LABEL[m]}</button>)}</div>
+    <p className="text-sm text-slate-600">次數在下面「每個語詞寫幾次」調整；沒有部件資料的字會改用描紅。</p>
+  </div>;
+}
+
 const card = 'rounded-2xl border bg-white p-4 sm:p-5 space-y-4';
 const stepTitle = 'flex items-center gap-3 text-xl font-bold';
 const stepNo = 'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-700 text-base text-white';
@@ -78,8 +98,12 @@ export default function SimpleCopybook({onAdvanced}) {
   const [picked, setPicked] = useState(() => (saved.picked || []).filter(id => byId.has(id) || String(id).startsWith('custom:')));
   const [preset, setPreset] = useState(SIMPLE_PRESETS.some(p => p.id === saved.preset) ? saved.preset : 'traceBlank');
   const [times, setTimes] = useState(Number.isInteger(saved.times) ? saved.times : 4);
+  // 自訂組合：第 2 次之後每一次的樣子（第 1 次固定示範字）
+  const [customSeq, setCustomSeq] = useState(() => cleanCustomSeq(saved.customSeq));
+  const [customSeqB, setCustomSeqB] = useState(() => cleanCustomSeq(saved.customSeqB));
+  const [presetOpen, setPresetOpen] = useState(false);
   const [contentMode, setContentMode] = useState(saved.contentMode === 'character' ? 'character' : 'word');
-  const [cellSize, setCellSize] = useState([20, 25, 30].includes(saved.cellSize) ? saved.cellSize : 20);
+  const [cellSize, setCellSize] = useState(CELL_SIZES.includes(saved.cellSize) ? saved.cellSize : 20);
   // 注音：show 加注音／blank 留空注音格／none 不要注音格；zhuyinOverride 是個別生字指定（true 印、false 空白）
   const [zhuyinMode, setZhuyinMode] = useState(['show', 'blank', 'none'].includes(saved.zhuyinMode) ? saved.zhuyinMode : saved.showZhuyin === false ? 'none' : 'show');
   const [zhuyinOverride, setZhuyinOverride] = useState(() => Object.fromEntries(Object.entries(saved.zhuyinOverride && typeof saved.zhuyinOverride === 'object' ? saved.zhuyinOverride : {}).filter(([, v]) => typeof v === 'boolean')));
@@ -102,7 +126,7 @@ export default function SimpleCopybook({onAdvanced}) {
   const [message, setMessage] = useState('');
   const [customMsg, setCustomMsg] = useState('');
 
-  useEffect(() => { try { window.localStorage.setItem(STORE, JSON.stringify({lesson, picked, custom, preset, times, contentMode, cellSize, zhuyinMode, zhuyinOverride, customTitle, zoom, strokeAppendix, diffOn, presetB, timesB})); } catch {} }, [zhuyinMode, zhuyinOverride, lesson, picked, custom, preset, times, contentMode, cellSize, showZhuyin, customTitle, zoom, strokeAppendix, diffOn, presetB, timesB]);
+  useEffect(() => { try { window.localStorage.setItem(STORE, JSON.stringify({lesson, picked, custom, preset, times, customSeq, customSeqB, contentMode, cellSize, zhuyinMode, zhuyinOverride, customTitle, zoom, strokeAppendix, diffOn, presetB, timesB})); } catch {} }, [customSeq, customSeqB, zhuyinMode, zhuyinOverride, lesson, picked, custom, preset, times, contentMode, cellSize, showZhuyin, customTitle, zoom, strokeAppendix, diffOn, presetB, timesB]);
 
   const addCustom = () => {
     const words = parseCustomWords(customText), ok = words.filter(validCustomWord), bad = words.filter(w => !validCustomWord(w));
@@ -122,7 +146,7 @@ export default function SimpleCopybook({onAdvanced}) {
   const fixCustomZhuyin = id => setCustom(v => v.map(c => c.id === id ? {...c, pinyin: normalizeZhuyin(c.pinyin, c.word.length)} : c));
   const removeCustom = id => { setCustom(v => v.filter(c => c.id !== id)); setPicked(v => v.filter(x => !x.startsWith(id + ':'))); };
   const copyShare = async () => {
-    const code = encodeShare({v: 1, l: lesson, p: picked.filter(id => !id.startsWith('custom:') || custom.some(c => id.startsWith(c.id + ':'))), c: custom, s: preset, t: times, d: diffOn, sb: presetB, tb: timesB, m: contentMode, z: cellSize, zm: zhuyinMode, zo: zhuyinOverride, h: customTitle});
+    const code = encodeShare({v: 1, l: lesson, p: picked.filter(id => !id.startsWith('custom:') || custom.some(c => id.startsWith(c.id + ':'))), c: custom, s: preset, t: times, cs: preset === 'custom' ? customSeq : undefined, csb: presetB === 'custom' ? customSeqB : undefined, d: diffOn, sb: presetB, tb: timesB, m: contentMode, z: cellSize, zm: zhuyinMode, zo: zhuyinOverride, h: customTitle});
     const url = window.location.href.split('#')[0] + '#ws=' + code;
     try { await navigator.clipboard.writeText(url); setMessage('已複製分享連結，貼給同事或家長，打開就是同一份學習單。'); }
     catch { window.prompt('請複製這個連結：', url); }
@@ -140,7 +164,7 @@ export default function SimpleCopybook({onAdvanced}) {
 
   const presetInfo = SIMPLE_PRESETS.find(p => p.id === preset);
   const shownTimes = Math.max(presetInfo.min, times);
-  const choosePreset = p => { if ((p.id === 'quiz') !== (preset === 'quiz')) setTimes(p.defaultTimes); else setTimes(t => Math.max(p.min, t)); setPreset(p.id); };
+  const choosePreset = p => { if ((p.id === 'quiz') !== (preset === 'quiz')) setTimes(p.defaultTimes); else setTimes(t => Math.max(p.min, t)); setPreset(p.id); if (p.id !== 'custom') setPresetOpen(false); };
 
   // 載入筆畫（部件提示與字形都需要）
   const needed = useMemo(() => [...new Set(pickedEntries.flatMap(e => [...e.word]))].join(''), [pickedEntries]);
@@ -169,16 +193,16 @@ export default function SimpleCopybook({onAdvanced}) {
 
   const autoTitle = automaticCopybookTitle(pickedEntries, lesson, getLessonMeta, getBook);
   const title = customTitle.trim() ? customTitle : autoTitle;
-  const missingParts = useMemo(() => new Set(preset === 'parts' ? [...needed].filter(c => data[c] === null) : []), [preset, needed, data]);
-  const doc = useMemo(() => buildSimpleDocument({groups, preset, times: shownTimes, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, titleCustom: !!customTitle.trim(), missingParts, fieldValues: {班級: studentClass.trim(), 姓名: studentName.trim()}}), [groups, preset, shownTimes, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, customTitle, missingParts, studentClass, studentName]);
+  const missingParts = useMemo(() => new Set(presetSequence(preset, shownTimes, customSeq).includes('parts') ? [...needed].filter(c => data[c] === null) : []), [preset, shownTimes, customSeq, needed, data]);
+  const doc = useMemo(() => buildSimpleDocument({groups, preset, times: shownTimes, customSeq, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, titleCustom: !!customTitle.trim(), missingParts, fieldValues: {班級: studentClass.trim(), 姓名: studentName.trim()}}), [groups, preset, shownTimes, customSeq, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, customTitle, missingParts, studentClass, studentName]);
   const entries = useMemo(() => orderedBookEntries(all, doc.selected), [all, doc.selected]);
   const plan = useMemo(() => bookColumns(entries, doc.options), [entries, doc.options]);
   const targetChars = useMemo(() => [...new Set(groups.flatMap(g => g.targets.map(i => g.word[i])))], [groups]);
   const strokeLayout = useMemo(() => strokeAppendix ? strokeOrderLayout(targetChars, data) : {pages: [], perLine: 0}, [strokeAppendix, targetChars, data]);
   const noStrokeChars = strokeAppendix ? targetChars.filter(c => data[c] === null) : [];
   const presetInfoB = SIMPLE_PRESETS.find(p => p.id === presetB), shownTimesB = Math.max(presetInfoB.min, timesB);
-  const missingPartsB = useMemo(() => new Set(presetB === 'parts' ? [...needed].filter(c => data[c] === null) : []), [presetB, needed, data]);
-  const docB = useMemo(() => diffOn ? buildSimpleDocument({groups, preset: presetB, times: shownTimesB, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, titleCustom: !!customTitle.trim(), missingParts: missingPartsB, fieldValues: {班級: studentClass.trim(), 姓名: studentName.trim()}}) : null, [diffOn, groups, presetB, shownTimesB, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, customTitle, missingPartsB, studentClass, studentName]);
+  const missingPartsB = useMemo(() => new Set(presetSequence(presetB, shownTimesB, customSeqB).includes('parts') ? [...needed].filter(c => data[c] === null) : []), [presetB, shownTimesB, customSeqB, needed, data]);
+  const docB = useMemo(() => diffOn ? buildSimpleDocument({groups, preset: presetB, times: shownTimesB, customSeq: customSeqB, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, titleCustom: !!customTitle.trim(), missingParts: missingPartsB, fieldValues: {班級: studentClass.trim(), 姓名: studentName.trim()}}) : null, [diffOn, groups, presetB, shownTimesB, customSeqB, contentMode, cellSize, showZhuyin, keepZhuyinRail, zhuyinOverride, title, customTitle, missingPartsB, studentClass, studentName]);
   const planB = useMemo(() => docB ? bookColumns(entries, docB.options) : null, [docB, entries]);
   const bookPagesA = plan.pages.length, bookPagesB = planB ? planB.pages.length : 0;
   const bookPages = bookPagesA + bookPagesB, strokePages = strokeLayout.pages.length;
@@ -208,7 +232,7 @@ export default function SimpleCopybook({onAdvanced}) {
   const doPrint = () => run('正在準備列印', () => printPages(outPlan, data, doc.options, undefined, allSVGs()), '已開啟列印視窗。若印出來太小，請在列印設定選「實際大小」或「100%」。');
   const doWord = () => run('正在製作 Word', async () => { if (!docB) { downloadBlob(await bookDOCX(entries, doc.options, data), title + '.docx'); return; } downloadBlob(await bookDOCX(entries, doc.options, data), title + '（A）.docx'); await new Promise(r => setTimeout(r, 600)); downloadBlob(await bookDOCX(entries, docB.options, data), title + '（B）.docx'); }, `已下載「${title}${docB ? '（A）與（B）兩個檔案' : '.docx'}」，通常會在電腦的「下載」資料夾。${strokePages ? 'Word 檔不含筆順附頁，需要的話請用 PDF 或列印。' : ''}`);
 
-  const seq = presetSequence(preset, shownTimes);
+  const seq = presetSequence(preset, shownTimes, customSeq), seqB = presetSequence(presetB, shownTimesB, customSeqB);
   const changedZhuyin = groups.reduce((n, g) => n + g.targets.filter(i => zhuyinOn(`${g.key}|${i}`) !== showZhuyin).length, 0);
   const quiz = preset === 'quiz';
   const noZhuyin = !(showZhuyin || quiz) ? [] : custom.filter(c => missingZhuyin(c.pinyin) && groups.some(g => g.entries[0]?.id.startsWith(c.id + ':')));
@@ -285,14 +309,23 @@ export default function SimpleCopybook({onAdvanced}) {
 
       <section className={card} aria-labelledby="s3">
         <h2 id="s3" className={stepTitle}><span className={stepNo}>3</span>選擇練習方式</h2>
-        <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="練習方式">
-          {SIMPLE_PRESETS.map(p => { const on = p.id === preset; return <button key={p.id} type="button" role="radio" aria-checked={on} onClick={() => choosePreset(p)}
-            className={'flex flex-col items-start gap-2 rounded-xl border-2 p-3 text-left ' + (on ? 'border-blue-700 bg-blue-50 ring-2 ring-blue-200' : 'border-slate-300 bg-white hover:bg-slate-50')}>
-            <span className="font-bold text-lg">{p.name}</span>
-            <span className="text-[15px] text-slate-600">{p.note}</span>
-            <Sequence small seq={presetSequence(p.id, Math.max(p.min, Math.min(5, on ? shownTimes : p.defaultTimes)))}/>
-          </button>; })}
-        </div>
+        <details className="rounded-xl border-2 border-slate-300 bg-white" open={presetOpen} onToggle={e => setPresetOpen(e.currentTarget.open)}>
+          <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 p-3 [&::-webkit-details-marker]:hidden">
+            <span className="text-sm text-slate-600">目前</span>
+            <span className="text-lg font-bold">{presetInfo.name}</span>
+            <Sequence small seq={seq.slice(0, 8)}/>
+            <span className="ml-auto inline-flex items-center gap-1 rounded-lg border-2 border-blue-700 px-2.5 py-1 text-sm font-bold text-blue-900">{presetOpen ? '收起' : '換練習方式'}<ChevronDown size={16} className={presetOpen ? 'rotate-180' : ''}/></span>
+          </summary>
+          <div className="grid gap-2 border-t p-3 sm:grid-cols-2" role="radiogroup" aria-label="練習方式">
+            {SIMPLE_PRESETS.map(p => { const on = p.id === preset; return <button key={p.id} type="button" role="radio" aria-checked={on} onClick={() => choosePreset(p)}
+              className={'flex flex-col items-start gap-2 rounded-xl border-2 p-3 text-left ' + (on ? 'border-blue-700 bg-blue-50 ring-2 ring-blue-200' : 'border-slate-300 bg-white hover:bg-slate-50')}>
+              <span className="font-bold text-lg">{p.name}</span>
+              <span className="text-[15px] text-slate-600">{p.note}</span>
+              <Sequence small seq={presetSequence(p.id, Math.max(p.min, Math.min(6, on ? shownTimes : p.defaultTimes)), customSeq)}/>
+            </button>; })}
+          </div>
+        </details>
+        {preset === 'custom' && <CustomSeqEditor seq={customSeq} times={shownTimes} onChange={setCustomSeq}/>}
 
         <fieldset className="space-y-3 rounded-xl bg-slate-50 p-3"><legend className="sr-only">注音</legend>
           <p className="font-bold">注音</p>
@@ -330,8 +363,10 @@ export default function SimpleCopybook({onAdvanced}) {
         <div className="grid gap-4 sm:grid-cols-2">
           <fieldset className="space-y-2"><legend className="font-bold">印出內容</legend>
             <div className="flex flex-wrap gap-2">{[['word', '整個語詞'], ['character', '只印生字']].map(([v, l]) => <button key={v} type="button" aria-pressed={contentMode === v} className={chip(contentMode === v)} onClick={() => setContentMode(v)}>{l}</button>)}</div></fieldset>
-          <fieldset className="space-y-2"><legend className="font-bold">字格大小</legend>
-            <div className="flex flex-wrap gap-2">{[[20, '一般'], [25, '大'], [30, '特大']].map(([v, l]) => <button key={v} type="button" aria-pressed={cellSize === v} className={chip(cellSize === v)} onClick={() => setCellSize(v)}>{l}</button>)}</div></fieldset>
+          <fieldset className="space-y-2 sm:col-span-2"><legend className="font-bold">字格大小</legend>
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="字格大小">{CELL_SIZES.map(v => { const l = SIZE_NAME[v]; return <button key={v} type="button" role="radio" aria-checked={cellSize === v} aria-label={`${l ? l + ' ' : ''}${v} 公釐`} className={chip(cellSize === v) + ' flex min-w-14 flex-col items-center px-2 py-1 leading-tight'} onClick={() => setCellSize(v)}>
+              <span>{v}<span className="text-xs font-normal"> mm</span></span>{l && <span className="text-xs font-normal">{l}</span>}</button>; })}</div>
+            <p className="text-sm text-slate-600">{entries.length ? `目前一頁 ${plan.perPage} 欄，每欄 ${plan.rows} 格。` : '數字是字格邊長；一般是 20 mm。'}</p></fieldset>
         </div>
 
         <fieldset className="space-y-3 rounded-xl border-2 border-dashed border-slate-300 p-3"><legend className="px-1 font-bold">差異化：同時印第二種練習方式</legend>
@@ -342,8 +377,9 @@ export default function SimpleCopybook({onAdvanced}) {
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="B 版練習方式">{SIMPLE_PRESETS.map(p => <button key={p.id} type="button" role="radio" aria-checked={presetB === p.id} className={chip(presetB === p.id) + ' text-sm'} onClick={() => { if ((p.id === 'quiz') !== (presetB === 'quiz')) setTimesB(p.defaultTimes); setPresetB(p.id); }}>{p.name}</button>)}</div>
             <p className="font-bold">B 版每個語詞寫幾次</p>
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="B 版每個語詞寫幾次">{(presetB === 'quiz' ? [1, 2, 3, 4] : [2, 3, 4, 5, 6, 8]).map(n => <button key={n} type="button" role="radio" aria-checked={shownTimesB === n} disabled={n < presetInfoB.min} className={chip(shownTimesB === n) + ' min-w-12 disabled:opacity-30'} onClick={() => setTimesB(n)}>{n} 次</button>)}</div>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700"><span>B 版生字依序：</span><Sequence small seq={presetSequence(presetB, shownTimesB)}/></div>
-            {presetB === preset && shownTimesB === shownTimes && <p className="text-sm text-amber-900">B 版和 A 版設定一樣，請換一種練習方式或次數。</p>}
+            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700"><span>B 版生字依序：</span><Sequence small seq={seqB}/></div>
+            {presetB === 'custom' && <CustomSeqEditor seq={customSeqB} times={shownTimesB} onChange={setCustomSeqB} label="B 版"/>}
+            {seqB.join() === seq.join() && <p className="text-sm text-amber-900">B 版和 A 版設定一樣，請換一種練習方式或次數。</p>}
           </div>}
         </fieldset>
         <fieldset className="space-y-2"><legend className="font-bold">筆順附頁</legend>
