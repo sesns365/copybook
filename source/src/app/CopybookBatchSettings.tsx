@@ -30,7 +30,7 @@ export default function CopybookBatchSettings({entries,options,disabled,onApply,
   <h3 id="copybook-batch-heading" className="text-xl font-bold">批次設定生字</h3>
   <p>先設定每一次的提示，再套用到目前學習單的全部 <strong>{entries.length}</strong> 個語詞。</p>
   <p className="text-sm text-slate-600">「第 1 次、第 2 次」是每個語詞重複練習的次數，包含示範字；只調整各語詞選定的生字。</p>
-  <CopybookPromptTemplates classroomId={classroomId} userId={userId} rules={rules} onRulesChange={setRules} disabled={disabled} fallbackRules={sheetRules}/>
+  <CopybookPromptTemplates classroomId={classroomId} userId={userId} rules={rules} onRulesChange={setRules} disabled={disabled} fallbackRules={sheetRules} wordCount={entries.length} onApplyNow={(r:any)=>{if(disabled)return;onApply(r);setRules({})}}/>
   {!entries.length?<p className="rounded-xl bg-slate-100 p-4">請先到「語詞與版面」加入語詞。</p>:<>
    <fieldset disabled={disabled} className="space-y-4">
     <legend className="sr-only">各次生字提示</legend>
