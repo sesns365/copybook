@@ -1,3 +1,4 @@
+import { readMyDefaults, saveMyDefaults } from './app/copybook-my-defaults';
 // 以瀏覽器 localStorage 取代原網站的伺服器 API，介面與原本 api({action}) 相同。
 const KEY = 'copybook-tool:worksheets:v1';
 // 簡易模式的「我的常用設定」也一起備份
@@ -62,7 +63,7 @@ export async function localApi(payload: any): Promise<any> {
 
 // 備份：把所有已存學習單匯出成一個 JSON 檔；匯入時以「較新版本」合併。
 export function exportBackup() {
-  const blob = new Blob([JSON.stringify({ app: 'copybook-tool', version: 1, exportedAt: new Date().toISOString(), rows: readRows(), favorites: readFavorites(), history: readHistory() }, null, 1)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ app: 'copybook-tool', version: 1, exportedAt: new Date().toISOString(), rows: readRows(), favorites: readFavorites(), history: readHistory(), myDefaults: readMyDefaults() }, null, 1)], { type: 'application/json' });
   const a = document.createElement('a');
   const d = new Date();
   a.href = URL.createObjectURL(blob);
@@ -77,7 +78,9 @@ export async function importBackup(file: File) {
   const valid = incoming.filter(r => r && typeof r.id === 'string' && typeof r.title === 'string' && typeof r.config === 'string' && (() => { try { return JSON.parse(r.config)?.layout; } catch { return false; } })());
   const favs = (Array.isArray(data?.favorites) ? data.favorites : []).filter((f: any) => f && typeof f.name === 'string' && f.s && typeof f.s === 'object');
   const hist = (Array.isArray(data?.history) ? data.history : []).filter((r: any) => r && typeof r.id === 'string' && typeof r.title === 'string' && r.state && typeof r.state === 'object');
-  if (!valid.length && !favs.length && !hist.length) throw new Error('檔案中沒有可匯入的學習單、常用設定或紀錄');
+  const mine = data?.myDefaults && typeof data.myDefaults === 'object' && !Array.isArray(data.myDefaults) ? data.myDefaults : null;
+  if (!valid.length && !favs.length && !hist.length && !mine) throw new Error('檔案中沒有可匯入的學習單、常用設定或紀錄');
+  if (mine && (!readMyDefaults() || window.confirm('備份檔裡有「我的預設設定」（進階模式）。要用它取代這台電腦目前的預設嗎？'))) { try { saveMyDefaults(mine); } catch {} }
   if (hist.length) {
     const merged = new Map(readHistory().map((r: any) => [r.id, r]));
     for (const r of hist) merged.set(r.id, r);

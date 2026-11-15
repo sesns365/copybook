@@ -4,6 +4,7 @@ import './app/globals.css';
 import Copybook from './app/Copybook';
 import SimpleCopybook from './app/SimpleCopybook';
 import { CurriculumTitleProvider } from './app/CurriculumContext';
+import { readMyDefaults } from './app/copybook-my-defaults';
 import { localApi, exportBackup, importBackup, readRows, readFavorites, readHistory } from './local-api';
 
 import logoUrl from './assets/logo-badge.png?inline';
@@ -46,7 +47,7 @@ function App() {
               <div role="tablist" aria-label="操作模式" className="flex rounded-xl border-2 bg-slate-100 p-1">
                 {([['simple', '簡易模式'], ['advanced', '進階模式']] as const).map(([m, label]) => <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => { if (m === 'advanced' && mode === 'simple' && handoff.current) handoff.current(); else setMode(m); }} className={'min-h-9 rounded-lg px-3 py-1.5 text-sm font-bold ' + (mode === m ? 'bg-white text-blue-900 shadow' : 'text-slate-600 hover:text-slate-900')}>{label}</button>)}
               </div>
-              {<><button type="button" className={btn} onClick={() => { const n = readRows().length, f = readFavorites().length, h = readHistory().length; if (!n && !f && !h) { setMessage('目前沒有已儲存的學習單、常用設定或紀錄可以備份。'); return; } exportBackup(); setMessage(`已下載備份檔：${n} 份學習單${f ? `、${f} 組常用設定` : ''}${h ? `、${h} 筆學習單紀錄` : ''}。`); }}>下載備份檔</button>
+              {<><button type="button" className={btn} onClick={() => { const n = readRows().length, f = readFavorites().length, h = readHistory().length; if (!n && !f && !h && !readMyDefaults()) { setMessage('目前沒有已儲存的學習單、常用設定或紀錄可以備份。'); return; } exportBackup(); setMessage(`已下載備份檔：${n} 份學習單${f ? `、${f} 組常用設定` : ''}${h ? `、${h} 筆學習單紀錄` : ''}。`); }}>下載備份檔</button>
               <button type="button" className={btn} onClick={() => fileInput.current?.click()}>匯入備份檔</button>
               <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={e => onImport(e.target.files?.[0])} /></>}
             </div>
