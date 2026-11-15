@@ -11,6 +11,7 @@ import {automaticCopybookTitle} from './copybook-title';
 import {CELL_SIZES} from './copybook-paper';
 import {SIMPLE_PRESETS, MODE_LABEL, CUSTOM_MODES, cleanCustomSeq, presetSequence, groupWords, buildSimpleDocument, buildZhuyinIndex, guessZhuyin, parseCustomWords, validCustomWord, normalizeZhuyin, missingZhuyin, polyphones, customEntries, customTargets, customLessonSnapshot, customBookSnapshot, CUSTOM_LESSON_ID} from './simple-copybook';
 import {downloadPDF, printPages} from './copybook-output';
+import HelpTip from './HelpTip';
 import {strokeOrderLayout, strokeOrderPageSVG} from './stroke-order-pages';
 import {captureCopybookContent} from './copybook-preservation';
 import {copybookComponentMapping} from './copybook-grouping';
@@ -459,7 +460,7 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
             {!miss && !!polyphones(c.word, zi).length && <p className="basis-full text-sm text-amber-900">「{polyphones(c.word, zi).join('、')}」有不只一種讀音，請確認注音是否正確。</p>}
           </div>; })}
         </div> : <>
-        <p className="text-[15px] text-slate-600">紅色的字是本課生字。換到其他課次，已勾選的語詞會保留，可以一起印在同一份學習單。</p>
+        <p className="text-[15px] text-slate-600">紅字是生字。換課時，已勾選的語詞會保留。</p>
         <div className="flex flex-wrap gap-2">
           {lessonGroups.map(g => { const on = isPicked(g); return <button key={g.key} type="button" aria-pressed={on} onClick={() => toggle(g)}
             className={'hanzi-kai flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-2xl ' + (on ? 'border-blue-700 bg-blue-50' : 'border-slate-300 bg-white hover:bg-slate-50')}>
@@ -526,7 +527,7 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
               className={'flex items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 px-2 py-3 text-base font-bold disabled:opacity-40 ' + (on ? 'border-blue-700 bg-blue-50 text-blue-900' : 'bg-white hover:bg-slate-50')}>
               <span aria-hidden="true" className="hanzi-kai inline-flex h-11 items-center border border-slate-400 bg-white text-2xl leading-none text-slate-900"><span className="px-1.5">字</span>{z !== null && <span className="flex h-full w-3.5 flex-col items-center justify-center border-l border-slate-300 text-[9px] leading-tight">{z}<br/>{t}</span>}</span>{l}</button>; })}
           </div>
-          <p className="text-[15px] text-slate-600">{quiz ? '看注音寫國字一定會印注音。' : zhuyinMode === 'show' ? '每個字旁邊印注音（預設）。' : zhuyinMode === 'blank' ? '保留注音格但不印注音，讓學生自己寫注音。字格大小和有注音時一樣。' : '不印注音也不留注音格，字格比較窄，一頁可以放比較多語詞。'}</p>
+          {(quiz || zhuyinMode !== 'show') && <p className="text-[15px] text-slate-600">{quiz ? '看注音寫國字一定會印注音。' : zhuyinMode === 'blank' ? '留注音格讓學生自己寫。' : '字格比較窄，一頁可放比較多語詞。'}</p>}
           {!quiz && zhuyinMode !== 'none' && !!targetChars.length && <details className="rounded-lg border bg-white p-3" open={zhuyinPanel} onToggle={e => setZhuyinPanel(e.currentTarget.open)}>
             <summary className="cursor-pointer font-bold">個別生字設定{changedZhuyin ? `（已調整 ${changedZhuyin} 個字）` : ''}</summary>
             <p className="mt-2 text-[15px] text-slate-600">點生字切換注音格裡要不要印注音。{showZhuyin ? '例如想讓學生自己拼的字，就改成「空白」。' : '例如比較難的字，可以改成「印注音」給提示。'}非生字的注音照上面的設定。</p>
@@ -548,7 +549,7 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700"><span>生字會依序這樣印：</span><Sequence seq={seq}/>
             <details className="w-full"><summary className="cursor-pointer text-sm font-bold text-blue-800">這些格子是什麼意思？</summary><div className="mt-2"><ModeLegend/></div></details></div>
-          <p className="text-[15px] text-slate-600">{seq.map((m, i) => `第 ${i + 1} 次${MODE_LABEL[m]}`).join('、')}</p>
+          <p className="sr-only">{seq.map((m, i) => `第 ${i + 1} 次${MODE_LABEL[m]}`).join('、')}</p>
           {usesParts && <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2"><span className="font-bold">部件提示的顏色</span>
             {[['black', '黑色'], ['red', '描紅'], ['gray', '描灰']].map(([v, l]) => <button key={v} type="button" aria-pressed={partsTone === v} className={chip(partsTone === v) + ' py-1'} onClick={() => setPartsTone(v)}>{l}</button>)}
             <span className="w-full text-sm text-slate-600">有提示的部件用這個顏色印出來，其餘部分空白讓學生自己寫。要逐字調整哪一部分當提示，請到進階模式。</span></div>}
@@ -593,18 +594,18 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
             </div>
         <fieldset className="space-y-3 rounded-xl border-2 border-dashed border-slate-300 p-3"><legend className="px-1 font-bold">差異化：同一份語詞印不同難度</legend>
           <div className="flex flex-wrap gap-2">{[[1, '不需要'], [2, 'A、B 兩版'], [3, 'A、B、C 三版']].map(([v, l]) => <button key={v} type="button" aria-pressed={diffCount === v} className={chip(diffCount === v)} onClick={() => setDiffCount(v)}>{l}</button>)}</div>
-          <p className="text-[15px] text-slate-600">例如 A 版「描紅後自己寫」給大部分學生、B 版「描紅練習」給需要多一點提示的學生、C 版「描紅＋部件提示」給還在學字形結構的學生。各版標題一樣，只在頁尾小字標示 A、B、C，學生不容易察覺。</p>
+          <p className="text-[15px] text-slate-600">同一份語詞印不同難度，頁尾小字標示 A、B、C。<HelpTip label="差異化說明">例如 A 版「描紅後自己寫」給大部分學生、B 版「描紅練習」給需要多一點提示的學生、C 版「描紅＋部件提示」給還在學字形結構的學生。各版標題一樣，學生不容易察覺。</HelpTip></p>
           {diffCount >= 2 && <VersionSettings label="B" preset={presetB} setPreset={setPresetB} times={shownTimesB} setTimes={setTimesB} customSeq={customSeqB} setCustomSeq={setCustomSeqB} same={presetSequence(presetB, shownTimesB, customSeqB).join() === seq.join()}/>}
           {diffCount >= 3 && <VersionSettings label="C" preset={presetC} setPreset={setPresetC} times={shownTimesC} setTimes={setTimesC} customSeq={customSeqC} setCustomSeq={setCustomSeqC} same={[seq.join(), presetSequence(presetB, shownTimesB, customSeqB).join()].includes(presetSequence(presetC, shownTimesC, customSeqC).join())}/>}
         </fieldset>
         <fieldset className="space-y-2"><legend className="font-bold">筆順附頁</legend>
           <div className="flex flex-wrap gap-2">{[[false, '不需要'], [true, '加印筆順附頁']].map(([v, l]) => <button key={String(v)} type="button" aria-pressed={strokeAppendix === v} className={chip(strokeAppendix === v)} onClick={() => setStrokeAppendix(v)}>{l}</button>)}</div>
-          <p className="text-[15px] text-slate-600">在學習單後面加印每個生字的筆順分解（一筆一格，紅色是這一筆），適合剛學寫字或需要筆順提示的孩子。PDF、列印和 Word 檔都會附上。</p>
+          <p className="text-[15px] text-slate-600">學習單後面加印每個生字的筆順，一筆一格。</p>
           {!!noStrokeChars.length && <p role="status" className="text-sm text-amber-900">「{noStrokeChars.join('、')}」沒有筆順資料，附頁會略過這些字。</p>}
         </fieldset>
         <label className="block space-y-1"><span className="font-bold">學習單標題</span>
           <input className="block w-full rounded-lg border-2 p-2" maxLength={45} value={title} onChange={e => { if (!customTitle.trim()) setCustomTitleBase(autoTitle); setCustomTitle(e.target.value); }} aria-describedby="title-hint"/>
-          <span id="title-hint" className="flex flex-wrap items-center gap-2 text-[15px] text-slate-600">{customTitle.trim() ? <>已自訂標題。<button type="button" className="font-bold text-blue-800 underline" onClick={() => { setCustomTitle(''); setCustomTitleBase(''); }}>改回自動標題</button></> : '會依勾選的課次自動命名，也可以直接修改。'}</span>
+          <span id="title-hint" className="flex flex-wrap items-center gap-2 text-[15px] text-slate-600">{customTitle.trim() ? <>已自訂標題。<button type="button" className="font-bold text-blue-800 underline" onClick={() => { setCustomTitle(''); setCustomTitleBase(''); }}>改回自動標題</button></> : '依課次自動命名，可直接修改。'}</span>
         </label>
         <details className="rounded-xl border bg-slate-50 p-3" open={!!(studentName || studentClass)}>
           <summary className="cursor-pointer font-bold">預先印上班級、姓名（選填）</summary>
@@ -612,7 +613,7 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
             <label className="block space-y-1"><span>班級</span><input className="block w-full rounded-lg border-2 bg-white p-2" maxLength={20} value={studentClass} onChange={e => setStudentClass(e.target.value)} placeholder="例如：五年三班"/></label>
             <label className="block space-y-1"><span>姓名</span><input className="block w-full rounded-lg border-2 bg-white p-2" maxLength={20} value={studentName} onChange={e => setStudentName(e.target.value)} placeholder="例如：王小明"/></label>
           </div>
-          <p className="mt-2 text-[15px] text-slate-600">適合幫個別學生準備專屬學習單。為了保護隱私，姓名不會被記住。</p>
+          <p className="mt-2 text-[15px] text-slate-600">姓名不會被記住。</p>
         </details>
           </div>
         </details>
@@ -624,7 +625,7 @@ export default function SimpleCopybook({onAdvanced, onRegister}) {
           {favAdding ? <span className="inline-flex flex-wrap items-center gap-1"><input autoFocus className="min-h-10 w-36 rounded-lg border-2 bg-white px-2" maxLength={16} value={favName} onChange={e => setFavName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveFav(); if (e.key === 'Escape') setFavAdding(false); }} placeholder="例如：小明用"/>
             <button type="button" className={btn + ' min-h-10 py-1 text-sm'} onClick={saveFav}>儲存</button><button type="button" className="min-h-10 px-2 text-sm text-slate-600 underline" onClick={() => setFavAdding(false)}>取消</button></span>
             : <button type="button" className="min-h-10 rounded-xl border-2 border-dashed px-3 text-sm font-bold text-slate-700 hover:bg-white" onClick={() => setFavAdding(true)}>＋ 把目前設定存起來</button>}
-          {!favs.length && !favAdding && <span className="text-xs text-slate-500">練習方式、次數、字格、注音、差異化等設定可以存起來，下次一鍵套用。</span>}
+          {!favs.length && !favAdding && <span className="text-sm text-slate-500">把目前設定存起來，下次一鍵套用。</span>}
           {!!favs.length && !favAdding && <span className="w-full text-xs text-slate-500">常用設定存在這台電腦；換電腦前，到「進階模式」右上角按「下載備份檔」就會一起帶走。</span>}
         </div>
       </section>

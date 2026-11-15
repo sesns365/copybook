@@ -59,7 +59,7 @@ function App() {
           <div hidden={mode !== 'simple'}><SimpleCopybook onRegister={(fn: any) => { handoff.current = fn; }} onAdvanced={(doc: any) => { if (doc.same) { setModeState('advanced'); try { window.localStorage.setItem('copybook-tool:mode', 'advanced'); } catch {} window.scrollTo({top: 0}); return; } if (doc.extraSaved?.length) { setReloadKey(k => k + 1); setMessage(doc.extraSaved.length > 1 ? `${doc.extraSaved.join('、')} 版都已自動儲存，目前開啟 A 版；其他版本在「開啟或管理已存學習單」。` : '已自動儲存這份學習單。'); } setSeed({...doc, nonce: Date.now()}); setModeState('advanced'); try { window.localStorage.setItem('copybook-tool:mode', 'advanced'); } catch {} window.scrollTo({top: 0}); }} /></div>
           <div hidden={mode !== 'advanced'}>
             <p className="mb-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-950">
-              進階模式可拖曳排版、逐字逐格調整並儲存多份學習單。在這裡的修改不會回到簡易模式；儲存的設定只留在這台裝置的這個瀏覽器，換電腦前請按右上「下載備份檔」。
+              儲存的學習單只留在這台瀏覽器，換電腦前請按右上「下載備份檔」。
               {message && <strong className="ml-2" role="status">{message}</strong>}
             </p>
             <Copybook key={reloadKey} seed={seed} api={localApi} classroomId="local" userId="teacher" onDirty={setDirty} />

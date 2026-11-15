@@ -1,5 +1,6 @@
 "use client";
 import React,{useMemo,useState} from 'react';
+import HelpTip from './HelpTip';
 import {bookCells,bookCount} from './copybook-export';
 import CopybookPromptTemplates from './CopybookPromptTemplates';
 
@@ -29,7 +30,7 @@ export default function CopybookBatchSettings({entries,options,disabled,onApply,
  return <section aria-labelledby="copybook-batch-heading" className="space-y-4">
   <h3 id="copybook-batch-heading" className="text-xl font-bold">批次設定生字</h3>
   <p>先設定每一次的提示，再套用到目前學習單的全部 <strong>{entries.length}</strong> 個語詞。</p>
-  <p className="text-sm text-slate-600">「第 1 次、第 2 次」是每個語詞重複練習的次數，包含示範字；只調整各語詞選定的生字。</p>
+  <p className="text-sm text-slate-600">第幾次＝每個語詞寫的第幾遍（含示範字），只改生字。</p>
   <CopybookPromptTemplates classroomId={classroomId} userId={userId} rules={rules} onRulesChange={setRules} disabled={disabled} fallbackRules={sheetRules} wordCount={entries.length} onApplyNow={(r:any)=>{if(disabled)return;onApply(r);setRules({})}}/>
   {!entries.length?<p className="rounded-xl bg-slate-100 p-4">請先到「語詞與版面」加入語詞。</p>:<>
    <fieldset disabled={disabled} className="space-y-4">
@@ -42,7 +43,7 @@ export default function CopybookBatchSettings({entries,options,disabled,onApply,
       </select>
      </label>
      <button type="button" className={button} disabled={!Object.values(rules).some(rule=>rule.mode)} onClick={()=>setRules({})}>清空待套用設定</button>
-     <p className="basis-full text-sm">一次把每一次都設成同一種提示；也可以在下方各次分別選擇，最後按最下方的「套用」。</p>
+     <p className="basis-full text-sm">全部設成同一種，或在下方各次分別選。</p>
     </div>
     <div className="space-y-3">
      {rows.map(({repeat,count,current})=><div key={repeat} className="rounded-xl border p-3 space-y-3">
@@ -61,9 +62,9 @@ export default function CopybookBatchSettings({entries,options,disabled,onApply,
     </div>
    </fieldset>
    <div className="space-y-3 rounded-xl border-2 border-blue-200 bg-blue-50 p-4">
-    <p className="text-sm" role="status">{affected?`待套用：${Object.keys(pending).length} 個次數，共 ${affected} 個生字格。`:'選擇上方提示方式後，按下方按鈕套用。'}</p>
+    <p className="text-sm" role="status">{affected?`待套用：${Object.keys(pending).length} 個次數，共 ${affected} 個生字格。`:''}</p>
     <button type="button" className={button+' border-blue-700 text-blue-900 w-full'} disabled={disabled||!affected} onClick={apply}>套用到全部 {entries.length} 個語詞</button>
-    <p className="text-sm text-slate-600">會取代指定次數的生字提示，包含原先的示範字、留白或個別提示；注音、其他字及排版保留。次數不足的語詞會略過，可按「復原」一次還原。</p>
+    <p className="text-sm text-slate-600">只換生字提示，注音與排版不變。<HelpTip label="套用說明">會取代指定次數的生字提示，包含原先的示範字、留白或個別提示；注音、其他字及排版保留。次數不足的語詞會略過，可按「復原」一次還原。</HelpTip></p>
    </div>
   </>}
  </section>;

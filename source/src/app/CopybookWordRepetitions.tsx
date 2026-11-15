@@ -1,12 +1,13 @@
 "use client";
 import {bookItem,bookCount,bookStoredItem} from './copybook-export';
+import HelpTip from './HelpTip';
 
 export default function CopybookWordRepetitions({entries,options,disabled,lessonLabel,onChange,onEdit,onMove}:{entries:any[];options:any;disabled:boolean;lessonLabel:(id:string)=>string;onChange:(entryId:string,value:string)=>void;onEdit?:(entryId:string)=>void;onMove?:(entryId:string,dir:number)=>void}){
  return <details className="border-2 border-blue-200 rounded-xl p-4">
   <summary className="font-bold cursor-pointer">語詞順序與練習次數 <span className="text-sm font-normal text-slate-600">（已選 {entries.length} 個語詞，點此展開／收合）</span></summary>
   <fieldset disabled={disabled} className="space-y-3 mt-3">
   <legend className="sr-only">語詞次數設定</legend>
-  <p className="text-sm text-slate-600">用 ↑↓ 調整語詞在學習單上的先後順序（手機上比拖曳方便）。每個語詞可獨立設定 1～20 次（含示範字）。選「沿用整張」會跟著整張預設調整；預覽立即更新。</p>
+  <p className="text-sm text-slate-600">↑↓ 調整順序；每個語詞可單獨設定次數。<HelpTip label="次數說明">每個語詞可設定 1～20 次（含示範字）。選「沿用整張」會跟著整張預設；單獨設定的語詞不受整張預設影響。按「編輯這個語詞」可直接調整該詞的字格提示。</HelpTip></p>
   {!entries.length?<p>請先勾選要加入學習單的語詞。</p>:<ul aria-label="已選語詞與練習次數" className="max-h-80 overflow-y-auto divide-y rounded-lg border bg-white">
    {entries.map((entry,i)=>{
     const independent=bookStoredItem(entry,options).repetitions!=null;
@@ -24,6 +25,5 @@ export default function CopybookWordRepetitions({entries,options,disabled,lesson
     </li>;
    })}
   </ul>}
-  <p className="text-sm text-slate-600">已獨立設定的語詞不受整張預設次數影響。{onEdit?'按「編輯這個語詞」可直接調整該詞的字格提示，跨課語詞也適用。 ':''}調整後可按「復原」，完成後請儲存學習單設定。</p>
  </fieldset></details>;
 }
