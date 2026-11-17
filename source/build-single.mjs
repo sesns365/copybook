@@ -19,7 +19,11 @@ const kaiCSS = fs.readFileSync('src/app/kai-font.css', 'utf8').split('\n').filte
   .map(l => l.replace(/url\("\/fonts\/kai\/(kai-\d+\.woff2)"\)/, (_, f) => `url(data:font/woff2;base64,${fs.readFileSync('public/fonts/kai/' + f).toString('base64')})`)).join('');
 html = html.replace('</head>', () => `<style>${kaiCSS}</style></head>`);
 const favicon = 'data:image/svg+xml;base64,' + fs.readFileSync('public/favicon.svg').toString('base64');
-html = html.replace(/<link rel="icon" href="[^"]+">/, () => `<link rel="icon" href="${favicon}">`);
+html = html.replace(/<link rel="icon" href="[^"]+"([^>]*)>/, () => `<link rel="icon" href="${favicon}" type="image/svg+xml">`);
+// 單一檔版：主畫面圖示改內嵌，manifest 無法離線引用所以拿掉
+const touch = 'data:image/png;base64,' + fs.readFileSync('public/apple-touch-icon.png').toString('base64');
+html = html.replace(/<link rel="apple-touch-icon" href="[^"]+">/, () => `<link rel="apple-touch-icon" href="${touch}">`);
+html = html.replace(/<link rel="manifest" href="[^"]+">\n?/, () => '');
 
 const strokes = {};
 for (const f of fs.readdirSync('public/strokes')) strokes[f.replace(/\.json$/, '')] = JSON.parse(fs.readFileSync(path.join('public/strokes', f), 'utf8'));

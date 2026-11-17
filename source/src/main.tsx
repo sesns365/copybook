@@ -7,6 +7,7 @@ import { CurriculumTitleProvider } from './app/CurriculumContext';
 import { readMyDefaults } from './app/copybook-my-defaults';
 import { localApi, exportBackup, importBackup, readRows, readFavorites, readHistory } from './local-api';
 
+import appIconUrl from './assets/app-icon.svg?inline';
 import logoUrl from './assets/logo-badge.png?inline';
 
 const base = import.meta.env.BASE_URL;
@@ -42,7 +43,7 @@ function App() {
       <div className="min-h-screen bg-slate-50 text-slate-900">
         <header className="relative border-b bg-white">
           <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 pr-20">
-            <h1 className="min-w-0 text-2xl font-bold">直式生字學習單製作工具</h1>
+            <h1 className="flex min-w-0 items-center gap-2 text-xl font-bold sm:gap-2.5 sm:text-2xl"><img src={appIconUrl} alt="" aria-hidden="true" className="h-7 w-7 shrink-0 sm:h-8 sm:w-8" />直式生字學習單製作工具</h1>
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <div role="tablist" aria-label="操作模式" className="flex rounded-xl border-2 bg-slate-100 p-1">
                 {([['simple', '簡易模式'], ['advanced', '進階模式']] as const).map(([m, label]) => <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => { if (m === 'advanced' && mode === 'simple' && handoff.current) handoff.current(); else setMode(m); }} className={'min-h-9 rounded-lg px-3 py-1.5 text-sm font-bold ' + (mode === m ? 'bg-white text-blue-900 shadow' : 'text-slate-600 hover:text-slate-900')}>{label}</button>)}
